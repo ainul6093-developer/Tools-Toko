@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Tools Toko</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- =========================
+         HEADER
+    ========================== -->
+
+    <header class="top-header">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                🛠️
+            </div>
+
+            <div class="brand-text">
+             <h1>Tools Toko</h1>
+            </div>
+
+        </div>
+
+        <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Buka menu">
+            ☰
+        </button>
+
+    </header>
+
+
+    <!-- =========================
+         SIDEBAR / MENU
+    ========================== -->
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="sidebar-title">
+            MENU UTAMA
+        </div>
+
+        <nav>
+
+            <a href="#home"
+               class="nav-item active"
+               data-page="home">
+
+                <span class="nav-icon">🏠</span>
+                <span>Home</span>
+
+            </a>
+
+
+            <a href="#master-data"
+               class="nav-item"
+               data-page="master-data">
+
+                <span class="nav-icon">🗃️</span>
+                <span>Master Data</span>
+
+            </a>
+
+
+            <a href="#gudang"
+               class="nav-item"
+               data-page="gudang">
+
+                <span class="nav-icon">🏬</span>
+                <span>Gudang</span>
+
+            </a>
+
+
+            <a href="#toko"
+               class="nav-item"
+               data-page="toko">
+
+                <span class="nav-icon">🏪</span>
+                <span>Toko</span>
+
+            </a>
+
+
+            <a href="#laporan"
+               class="nav-item"
+               data-page="laporan">
+
+                <span class="nav-icon">📊</span>
+                <span>Laporan</span>
+
+            </a>
+
+
+            <a href="#admin"
+               class="nav-item"
+               data-page="admin">
+
+                <span class="nav-icon">👤</span>
+                <span>Admin</span>
+
+            </a>
+
+
+            <a href="#developer"
+               class="nav-item"
+               data-page="developer">
+
+                <span class="nav-icon">🛡️</span>
+                <span>Developer</span>
+
+            </a>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- =========================
+         OVERLAY HP
+    ========================== -->
+
+    <div
+        class="sidebar-overlay"
+        id="sidebarOverlay">
+    </div>
+
+
+    <!-- =========================
+         KONTEN UTAMA
+    ========================== -->
+
+    <main class="main-content" id="mainContent">
+
+
+        <!-- =====================
+             HOME
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-home">
+
+            <section class="home-hero">
+
+                <div class="hero-content">
+
+                    <div class="hero-icon">
+                        🛠️
+                    </div>
+
+                    <div>
+
+                        <h2>Selamat Datang 👋 </h2>
+
+                        <p>
+                            Kelola kebutuhan operasional toko
+                            dalam satu aplikasi.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- FAST MENU -->
+
+            <section class="fast-menu">
+
+                <div class="section-title">
+
+                    <div class="title-icon">
+                        ⚡
+                    </div>
+
+                    <h2>
+                        Fast Menu
+                    </h2>
+
+                </div>
+
+
+                <div class="fast-grid">
+
+
+                    <!-- CEK HARGA -->
+
+                    <button
+                        class="fast-card price-card"
+                        data-page="cek-harga">
+
+                        <div class="fast-card-icon">
+                            💰
+                        </div>
+
+                        <div class="fast-card-content">
+
+                            <h3>
+                                Cek Harga
+                            </h3>
+
+                            <p>
+                                Cek harga produk dengan cepat
+                            </p>
+
+                        </div>
+
+                        <div class="fast-arrow">
+                            →
+                        </div>
+
+                    </button>
+
+
+                    <!-- CEK STOK -->
+
+                    <button
+                        class="fast-card stock-card"
+                        data-page="cek-stok">
+
+                        <div class="fast-card-icon">
+                            📦
+                        </div>
+
+                        <div class="fast-card-content">
+
+                            <h3>
+                                Cek Stok
+                            </h3>
+
+                            <p>
+                                Lihat stok melalui Planogram 1
+                            </p>
+
+                        </div>
+
+                        <div class="fast-arrow">
+                            →
+                        </div>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+        </section>
+
+
+
+        <!-- =====================
+             MASTER DATA
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-master-data">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    🗃️
+                </div>
+
+                <div>
+
+                    <h2>Master Data</h2>
+
+                    <p>
+                        Pusat pengelolaan data utama aplikasi.
+                    </p>
+
+                </div>
+
+            </div>
+
+          <div class="master-product">
+
+    <div class="master-toolbar">
+
+        <div class="master-info">
+
+            <h3>
+                🗃️ Master Produk
+            </h3>
+
+            <p id="masterProductInfo">
+                Belum ada data produk.
+            </p>
+
+        </div>
+
+        <div class="master-actions">
+
+            <label
+                for="productFile"
+                class="upload-button">
+                📂 Upload Excel
+            </label>
+
+            <input
+                type="file"
+                id="productFile"
+                accept=".xlsx,.xls,.csv"
+                hidden>
+
+            <button
+                id="clearProductData"
+                class="clear-button">
+                🗑️ Hapus Data
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- SEARCH -->
+
+    <div class="master-search">
+
+        <span>
+            🔎
+        </span>
+
+        <input
+            type="search"
+            id="productSearch"
+            placeholder="Cari kode atau nama produk...">
+
+    </div>
+
+
+    <!-- TABLE -->
+
+    <div class="product-table-wrapper">
+
+        <table
+            class="product-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>No.</th>
+                    <th>Kode</th>
+                    <th>Nama</th>
+                    <th>Principle</th>
+                    <th>Nama Principle</th>
+                    <th>Supplier</th>
+                    <th>Nama Supplier</th>
+                    <th>Kategori</th>
+                    <th>Hpp</th>
+                    <th>Hrg1</th>
+                    <th>Hrg2</th>
+                    <th>Hrg3</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="productTableBody">
+
+                <tr>
+
+                    <td
+                        colspan="12"
+                        class="product-empty">
+                        Belum ada data.
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- PAGINATION -->
+
+    <div class="product-pagination">
+
+        <button
+            id="prevProductPage">
+            ← Sebelumnya
+        </button>
+
+        <span id="productPageInfo">
+            Halaman 0
+        </span>
+
+        <button
+            id="nextProductPage">
+            Berikutnya →
+        </button>
+
+    </div>
+
+          </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             GUDANG
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-gudang">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    🏬
+                </div>
+
+                <div>
+
+                    <h2>Gudang</h2>
+
+                    <p>
+                        Pengelolaan stok dan planogram.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    🏬
+                </div>
+
+                <h3>
+                    Gudang
+                </h3>
+
+                <p>
+                    Fitur akan kita bangun pada tahap berikutnya.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             TOKO
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-toko">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    🏪
+                </div>
+
+                <div>
+
+                    <h2>Toko</h2>
+
+                    <p>
+                        Fitur operasional toko.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    🏪
+                </div>
+
+                <h3>
+                    Toko
+                </h3>
+
+                <p>
+                    Fitur akan kita bangun pada tahap berikutnya.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             LAPORAN
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-laporan">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    📊
+                </div>
+
+                <div>
+
+                    <h2>Laporan</h2>
+
+                    <p>
+                        Berbagai laporan operasional toko.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    📊
+                </div>
+
+                <h3>
+                    Laporan
+                </h3>
+
+                <p>
+                    Fitur laporan akan kita bangun
+                    secara bertahap.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             ADMIN
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-admin">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    👤
+                </div>
+
+                <div>
+
+                    <h2>Admin</h2>
+
+                    <p>
+                        Pengelolaan data operasional.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    👤
+                </div>
+
+                <h3>
+                    Admin
+                </h3>
+
+                <p>
+                    Fitur administrasi akan kita bangun
+                    pada tahap berikutnya.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             DEVELOPER
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-developer">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    🛡️
+                </div>
+
+                <div>
+
+                    <h2>Developer</h2>
+
+                    <p>
+                        Pengaturan dan kendali sistem.
+                    </p>
+
+                </div>
+
+            </div>
+
+ <div class="empty-card">
+
+       <div class="empty-icon">
+                  🛡️
+         </div>
+
+         <h3>
+    Pengaturan Sistem
+</h3>
+
+<p>
+    Pengaturan dasar aplikasi.
+</p>
+
+<div class="branch-setting">
+
+    <label for="branchId">
+        ID Cabang
+    </label>
+
+    <input
+        type="text"
+        id="branchId"
+        placeholder="Contoh: BSM001">
+
+    <label for="branchName">
+        Nama Cabang
+    </label>
+
+    <input
+        type="text"
+        id="branchName"
+        placeholder="Contoh: Basmalah Patemon">
+
+    <button
+        id="saveBranch"
+        class="save-button">
+        Simpan Cabang
+    </button>
+
+</div>
+
+<button
+    id="resetSettings"
+    class="reset-button">
+    Reset Pengaturan
+</button>
+
+ </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             CEK HARGA
+             SEMENTARA
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-cek-harga">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    💰
+                </div>
+
+                <div>
+
+                    <h2>Cek Harga</h2>
+
+                    <p>
+                        Fitur ini akan dikembangkan nanti.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    💰
+                </div>
+
+                <h3>
+                    Cek Harga
+                </h3>
+
+                <p>
+                    Halaman fitur sementara.
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================
+             CEK STOK
+             SEMENTARA
+        ====================== -->
+
+        <section
+            class="page"
+            id="page-cek-stok">
+
+            <div class="page-header">
+
+                <div class="page-header-icon">
+                    📦
+                </div>
+
+                <div>
+
+                    <h2>Cek Stok</h2>
+
+                    <p>
+                        Mengarah ke Planogram 1.
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="empty-card">
+
+                <div class="empty-icon">
+                    📦
+                </div>
+
+                <h3>
+                    Cek Stok
+                </h3>
+
+                <p>
+                    Fitur ini akan dikembangkan nanti.
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+<script src="js/app.js"></script>
+
+<script src="js/home.js"></script>
+
+<!-- PEMBACA EXCEL -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script src="js/master.js"></script>
+<script src="js/gudang.js"></script>
+<script src="js/toko.js"></script>
+<script src="js/laporan.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/developer.js"></script>
+
+  
+</body>
+
+</html>
