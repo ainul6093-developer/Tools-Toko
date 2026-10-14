@@ -62,14 +62,41 @@
             </a>
 
 
-            <a href="#master-data"
-               class="nav-item"
-               data-page="master-data">
+            <div class="nav-group" id="masterDataGroup">
 
-                <span class="nav-icon">🗃️</span>
-                <span>Master Data</span>
+                <button type="button"
+                        class="nav-group-toggle"
+                        id="masterDataToggle"
+                        aria-expanded="false">
+                    <span class="nav-icon">🗃️</span>
+                    <span class="nav-group-label">Master Data</span>
+                </button>
 
-            </a>
+                <div class="nav-submenu" id="masterDataSubmenu">
+
+                    <a href="#master-data"
+                       class="nav-item nav-subitem"
+                       data-page="master-data">
+                        <span class="nav-sub-dot">•</span>
+                        <span>Master Produk</span>
+                    </a>
+
+                    <a href="#stok-toko"
+                       class="nav-item nav-subitem"
+                       data-page="stok-toko">
+                        <span class="nav-sub-dot">•</span>
+                        <span>Stok Toko</span>
+                    </a>
+
+                    <a href="#stok-gudang"
+                       class="nav-item nav-subitem"
+                       data-page="stok-gudang">
+                        <span class="nav-sub-dot">•</span>
+                        <span>Stok Gudang</span>
+                    </a>
+
+                </div>
+            </div>
 
 
             <a href="#gudang"
@@ -414,6 +441,52 @@
 
         </section>
 
+
+
+        <!-- =====================
+             STOK TOKO
+        ====================== -->
+
+        <section class="page" id="page-stok-toko">
+
+            <div class="page-header">
+                <div class="page-header-icon">🏪</div>
+                <div>
+                    <h2>Stok Toko</h2>
+                    <p>Informasi stok barang di toko.</p>
+                </div>
+            </div>
+
+            <div class="empty-card feature-development-card">
+                <div class="empty-icon">🚧</div>
+                <h3>Fitur dalam pengembangan</h3>
+                <p>Fitur Stok Toko akan tersedia pada tahap berikutnya.</p>
+            </div>
+
+        </section>
+
+
+        <!-- =====================
+             STOK GUDANG
+        ====================== -->
+
+        <section class="page" id="page-stok-gudang">
+
+            <div class="page-header">
+                <div class="page-header-icon">🏬</div>
+                <div>
+                    <h2>Stok Gudang</h2>
+                    <p>Informasi stok barang di gudang.</p>
+                </div>
+            </div>
+
+            <div class="empty-card feature-development-card">
+                <div class="empty-icon">🚧</div>
+                <h3>Fitur dalam pengembangan</h3>
+                <p>Fitur Stok Gudang akan tersedia pada tahap berikutnya.</p>
+            </div>
+
+        </section>
 
 
         <!-- =====================
