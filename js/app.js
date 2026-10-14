@@ -28,6 +28,28 @@ const fastCards =
 
 
 /* =========================================
+   SUBMENU MASTER DATA
+========================================= */
+
+const masterDataGroup =
+    document.getElementById("masterDataGroup");
+
+const masterDataToggle =
+    document.getElementById("masterDataToggle");
+
+if (masterDataToggle && masterDataGroup) {
+    masterDataToggle.addEventListener("click", function () {
+        const isOpen = masterDataGroup.classList.toggle("open");
+
+        masterDataToggle.setAttribute(
+            "aria-expanded",
+            String(isOpen)
+        );
+    });
+}
+
+
+/* =========================================
    SIDEBAR HP
 ========================================= */
 
@@ -178,6 +200,23 @@ function showPage(pageName) {
     initMasterProduk();
 
   }
+
+
+    /* Buka submenu saat halaman Master Data dipilih */
+
+    if (
+        pageName === "master-data" ||
+        pageName === "stok-toko" ||
+        pageName === "stok-gudang"
+    ) {
+        if (masterDataGroup) {
+            masterDataGroup.classList.add("open");
+        }
+
+        if (masterDataToggle) {
+            masterDataToggle.setAttribute("aria-expanded", "true");
+        }
+    }
 
 
     /* Update menu aktif */
