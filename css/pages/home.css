@@ -1,0 +1,280 @@
+/*=========================================
+   HOME
+   Gaya khusus halaman Home dan Fast Menu
+=========================================*/
+
+/*=========================================
+   HOME HERO
+=========================================*/
+
+#page-home .home-hero {
+    width: 100%;
+    max-width: 1100px;
+    margin-bottom: 28px;
+    padding: 30px;
+    border-radius: 20px;
+    background: linear-gradient(
+            135deg,
+            #eaf3ff,
+            #f5f7ff
+        );
+    border: 1px solid #dce8f8;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.06);
+}
+
+#page-home .hero-content {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+#page-home .hero-icon {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #ffffff;
+    font-size: 32px;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.08);
+}
+
+#page-home .hero-content h2 {
+    font-size: 27px;
+    margin-bottom: 7px;
+    color: #1e293b;
+}
+
+#page-home .hero-content p {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/*=========================================
+   FAST MENU
+=========================================*/
+
+#page-home .fast-menu {
+    max-width: 1100px;
+    margin-bottom: 28px;
+}
+
+#page-home .section-title {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 15px;
+}
+
+#page-home .title-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    background: #ffffff;
+    font-size: 19px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+#page-home .section-title h2 {
+    font-size: 20px;
+    color: #1e293b;
+}
+
+/*=========================================
+   FAST GRID
+=========================================*/
+
+#page-home .fast-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+#page-home .fast-card {
+    position: relative;
+    min-height: 145px;
+    padding: 23px;
+    border: 1px solid #e1e8f2;
+    border-radius: 18px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 7px 24px rgba(15, 23, 42, 0.055);
+    transition: transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+#page-home .fast-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.09);
+}
+
+#page-home .fast-card:active {
+    transform: translateY(0);
+}
+
+#page-home .fast-card-icon {
+    width: 58px;
+    height: 58px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    font-size: 28px;
+}
+
+#page-home .price-card .fast-card-icon {
+    background: #fff4d9;
+}
+
+#page-home .stock-card .fast-card-icon {
+    background: #e7f7ef;
+}
+
+#page-home .fast-card-content {
+    padding-right: 25px;
+}
+
+#page-home .fast-card-content h3 {
+    font-size: 17px;
+    color: #1f2937;
+    margin-bottom: 6px;
+}
+
+#page-home .fast-card-content p {
+    font-size: 13px;
+    color: #718096;
+    line-height: 1.4;
+}
+
+#page-home .fast-arrow {
+    position: absolute;
+    right: 20px;
+    font-size: 22px;
+    color: #94a3b8;
+    transition: 0.2s ease;
+}
+
+#page-home .fast-card:hover .fast-arrow {
+    transform: translateX(4px);
+    color: #2563eb;
+}
+
+/*=========================================
+   HOME - HP
+=========================================*/
+
+@media (max-width: 700px) {
+    /*HERO*/
+
+    #page-home .home-hero {
+        padding: 22px;
+        border-radius: 17px;
+        margin-bottom: 23px;
+    }
+
+    #page-home .hero-content {
+        gap: 14px;
+    }
+
+    #page-home .hero-icon {
+        width: 53px;
+        height: 53px;
+        border-radius: 15px;
+        font-size: 26px;
+    }
+
+    #page-home .hero-content h2 {
+        font-size: 22px;
+        margin-bottom: 5px;
+    }
+
+    #page-home .hero-content p {
+        font-size: 13px;
+    }
+
+    /*FAST MENU*/
+
+    #page-home .section-title {
+        margin-bottom: 12px;
+    }
+
+    #page-home .section-title h2 {
+        font-size: 18px;
+    }
+
+    #page-home .title-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 17px;
+    }
+
+    /*FAST CARD*/
+
+    #page-home .fast-grid {
+        grid-template-columns: 1fr;
+        gap: 13px;
+    }
+
+    #page-home .fast-card {
+        min-height: 110px;
+        padding: 18px;
+        border-radius: 15px;
+        gap: 14px;
+    }
+
+    #page-home .fast-card-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        font-size: 24px;
+    }
+
+    #page-home .fast-card-content h3 {
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+
+    #page-home .fast-card-content p {
+        font-size: 12px;
+    }
+
+    #page-home .fast-arrow {
+        right: 16px;
+    }
+}
+
+/*=========================================
+   HOME - HP KECIL
+=========================================*/
+
+@media (max-width: 400px) {
+    #page-home .home-hero {
+        padding: 18px;
+    }
+
+    #page-home .hero-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 23px;
+    }
+
+    #page-home .hero-content h2 {
+        font-size: 20px;
+    }
+
+    #page-home .hero-content p {
+        font-size: 12px;
+    }
+}
