@@ -1,0 +1,55 @@
+<div class="page-header">
+    <div class="page-header-icon">🏬</div>
+    <div>
+        <h2>Stok Gudang</h2>
+        <p>Informasi stok barang di gudang.</p>
+    </div>
+</div>
+
+<div class="stock-page-panel">
+    <div class="stock-toolbar">
+        <div class="stock-search-wrap">
+            <span class="stock-search-icon">⌕</span>
+            <input
+                autocomplete="off"
+                id="stokGudangSearch"
+                placeholder="Cari kode, nama barang, rak, atau stok..."
+                type="search">
+        </div>
+        <div class="stock-actions">
+            <span class="stock-count" id="stokGudangCount">0 barang</span>
+            <button class="stock-upload-btn" id="uploadStokGudangBtn" type="button">
+                ↑ Upload Excel
+            </button>
+            <input accept=".xls,.xlsx,.csv" hidden="" id="stokGudangFile" type="file">
+        </div>
+    </div>
+    <div aria-live="polite" class="stock-status" id="stokGudangStatus">
+        Upload file stok gudang dari POS untuk mulai menampilkan data.
+    </div>
+    <div class="stock-table-scroll">
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>KODE</th>
+                    <th>NAMA</th>
+                    <th>RAK</th>
+                    <th>STOK</th>
+                    <th>HPP</th>
+                    <th>NILAI</th>
+                </tr>
+            </thead>
+            <tbody id="stokGudangTableBody">
+                <tr>
+                    <td class="stock-empty-cell" colspan="7">Memeriksa data stok gudang...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="stock-pagination">
+        <button disabled="" id="stokGudangPrev" type="button">← Sebelumnya</button>
+        <span id="stokGudangPageInfo">Halaman 1 dari 1</span>
+        <button disabled="" id="stokGudangNext" type="button">Berikutnya →</button>
+    </div>
+</div>

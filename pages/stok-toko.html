@@ -1,0 +1,55 @@
+<div class="page-header">
+    <div class="page-header-icon">🏪</div>
+    <div>
+        <h2>Stok Toko</h2>
+        <p>Informasi stok barang di toko.</p>
+    </div>
+</div>
+
+<div class="stock-page-panel">
+    <div class="stock-toolbar">
+        <div class="stock-search-wrap">
+            <span class="stock-search-icon">⌕</span>
+            <input
+                autocomplete="off"
+                id="stokTokoSearch"
+                placeholder="Cari kode, nama barang, rak, atau stok..."
+                type="search">
+        </div>
+        <div class="stock-actions">
+            <span class="stock-count" id="stokTokoCount">0 barang</span>
+            <button class="stock-upload-btn" id="uploadStokTokoBtn" type="button">
+                ↑ Upload Excel
+            </button>
+            <input accept=".xls,.xlsx,.csv" hidden="" id="stokTokoFile" type="file">
+        </div>
+    </div>
+    <div aria-live="polite" class="stock-status" id="stokTokoStatus">
+        Upload file stok toko dari POS untuk mulai menampilkan data.
+    </div>
+    <div class="stock-table-scroll">
+        <table class="stock-table">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>KODE</th>
+                    <th>NAMA</th>
+                    <th>RAK</th>
+                    <th>STOK</th>
+                    <th>HPP</th>
+                    <th>NILAI</th>
+                </tr>
+            </thead>
+            <tbody id="stokTokoTableBody">
+                <tr>
+                    <td class="stock-empty-cell" colspan="7">Memeriksa data stok toko...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="stock-pagination">
+        <button disabled="" id="stokTokoPrev" type="button">← Sebelumnya</button>
+        <span id="stokTokoPageInfo">Halaman 1 dari 1</span>
+        <button disabled="" id="stokTokoNext" type="button">Berikutnya →</button>
+    </div>
+</div>
