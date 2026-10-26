@@ -3,7 +3,6 @@
    APP.JS
 ========================================= */
 
-
 /* =========================================
    ELEMENT
 ========================================= */
@@ -23,9 +22,100 @@ const navItems =
 const pages =
     document.querySelectorAll(".page");
 
-const fastCards =
-    document.querySelectorAll(".fast-card");
+const mainContent = document.getElementById("mainContent");
 
+const pageFragments = new Set([
+    "home",
+    "stok-toko",
+    "stok-gudang",
+    "gudang",
+    "toko",
+    "data-expired",
+    "admin",
+    "laporan",
+    "cek-harga",
+    "cek-stok",
+    "developer"
+]);
+const loadedPageFragments = new Set();
+const pageLoadPromises = new Map();
+
+// CSS halaman dinamis dimuat sebelum fragmen HTML ditampilkan.
+// Setiap halaman stok memiliki stylesheet mandiri dan tidak berbagi file CSS.
+const pageStylesheets = new Map([
+    ["stok-toko", "css/pages/stok-toko.css?v=17"],
+    ["stok-gudang", "css/pages/stok-gudang.css?v=17"],
+    ["data-expired", "css/pages/expired.css?v=22"],
+    ["developer", "css/pages/developer.css?v=15"]
+]);
+const pageStylesheetPromises = new Map();
+
+function loadPageStylesheet(pageName) {
+    const stylesheetPath = pageStylesheets.get(pageName);
+    if (!stylesheetPath) return Promise.resolve();
+    // Kunci berdasarkan path agar CSS bersama tidak dimuat dua kali untuk dua halaman.
+    if (pageStylesheetPromises.has(stylesheetPath)) {
+        return pageStylesheetPromises.get(stylesheetPath);
+    }
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = stylesheetPath;
+    link.dataset.pageStylesheet = pageName;
+
+    const promise = new Promise(resolve => {
+        link.addEventListener("load", resolve, { once: true });
+        link.addEventListener("error", () => {
+            link.remove();
+            pageStylesheetPromises.delete(stylesheetPath);
+            console.error("Gagal memuat CSS halaman " + pageName + ": " + stylesheetPath);
+            // Kegagalan CSS tidak boleh menggagalkan pemuatan HTML halaman.
+            resolve();
+        }, { once: true });
+        document.head.appendChild(link);
+    });
+
+    pageStylesheetPromises.set(stylesheetPath, promise);
+    return promise;
+}
+
+async function loadPageFragment(pageName) {
+    if (!pageFragments.has(pageName)) return;
+    const page = document.getElementById("page-" + pageName);
+    if (!page || loadedPageFragments.has(pageName)) return;
+    if (pageLoadPromises.has(pageName)) return pageLoadPromises.get(pageName);
+
+    const fragmentPath = pageName === "data-expired"
+        ? "pages/data-expired.html?v=22"
+        : "pages/" + pageName + ".html";
+    const promise = fetch(fragmentPath)
+        .then(response => {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.text();
+        })
+        .then(async markup => {
+            // Muat CSS khusus sebelum memasukkan markup agar tidak sempat
+            // tampil tanpa gaya.
+            await loadPageStylesheet(pageName);
+            page.innerHTML = markup;
+            loadedPageFragments.add(pageName);
+            page.setAttribute("aria-busy", "false");
+        })
+        .catch(error => {
+            page.innerHTML =
+                '<div class="page-load-error">' +
+                'Konten menu gagal dimuat. Periksa folder pages ' +
+                'lalu buka aplikasi melalui Acode Preview/server.' +
+                '</div>';
+            page.setAttribute("aria-busy", "false");
+            pageLoadPromises.delete(pageName);
+            console.error("Gagal memuat halaman " + pageName + ":", error);
+            throw error;
+        });
+    page.setAttribute("aria-busy", "true");
+    pageLoadPromises.set(pageName, promise);
+    return promise;
+}
 
 /* =========================================
    SUBMENU MASTER DATA
@@ -37,17 +127,46 @@ const masterDataGroup =
 const masterDataToggle =
     document.getElementById("masterDataToggle");
 
+/* =========================================
+   SUBMENU LAPORAN
+========================================= */
+
+const laporanGroup =
+    document.getElementById("laporanGroup");
+
+const laporanToggle =
+    document.getElementById("laporanToggle");
+
+/* Sinkronkan status submenu dan atribut aksesibilitasnya. */
+function setSubmenuState(group, toggle, isOpen) {
+    if (group) {
+        group.classList.toggle("open", isOpen);
+    }
+
+    if (toggle) {
+        toggle.setAttribute("aria-expanded", String(isOpen));
+    }
+}
+
 if (masterDataToggle && masterDataGroup) {
     masterDataToggle.addEventListener("click", function () {
-        const isOpen = masterDataGroup.classList.toggle("open");
+        const isOpen = !masterDataGroup.classList.contains("open");
 
-        masterDataToggle.setAttribute(
-            "aria-expanded",
-            String(isOpen)
-        );
+        // Hanya satu kelompok submenu yang boleh terbuka pada satu waktu.
+        setSubmenuState(laporanGroup, laporanToggle, false);
+        setSubmenuState(masterDataGroup, masterDataToggle, isOpen);
     });
 }
 
+if (laporanToggle && laporanGroup) {
+    laporanToggle.addEventListener("click", function () {
+        const isOpen = !laporanGroup.classList.contains("open");
+
+        // Hanya satu kelompok submenu yang boleh terbuka pada satu waktu.
+        setSubmenuState(masterDataGroup, masterDataToggle, false);
+        setSubmenuState(laporanGroup, laporanToggle, isOpen);
+    });
+}
 
 /* =========================================
    SIDEBAR HP
@@ -61,7 +180,6 @@ function toggleSidebar() {
 
 }
 
-
 function closeSidebar() {
 
     sidebar.classList.remove("open");
@@ -69,7 +187,6 @@ function closeSidebar() {
     sidebarOverlay.classList.remove("show");
 
 }
-
 
 /* =========================================
    GESTURE SWIPE SIDEBAR HP
@@ -79,9 +196,13 @@ let touchStartX = 0;
 let touchEndX = 0;
 
 // Menandai apakah gesture berasal dari area yang boleh
-// digunakan untuk membuka/menutup sidebar
+// digunakan untuk membuka/menutup sidebar.
 let allowSidebarSwipe = true;
 
+// Geser horizontal pada tabel harus tetap digunakan untuk menggulir tabel,
+// bukan dianggap sebagai gesture untuk membuka atau menutup sidebar.
+const sidebarSwipeExcludedAreas =
+    ".product-table-wrapper, .stock-table-scroll, .expired-table-wrapper";
 
 document.addEventListener("touchstart", function(event) {
 
@@ -89,8 +210,8 @@ document.addEventListener("touchstart", function(event) {
         return;
     }
 
-    // Jika menyentuh area tabel, jangan gunakan gesture sidebar
-    if (event.target.closest(".product-table-wrapper")) {
+    // Jangan mengambil alih gesture gulir horizontal pada tabel.
+    if (event.target.closest(sidebarSwipeExcludedAreas)) {
         allowSidebarSwipe = false;
         return;
     }
@@ -102,15 +223,13 @@ document.addEventListener("touchstart", function(event) {
 
 });
 
-
 document.addEventListener("touchend", function(event) {
 
     if (window.innerWidth > 700) {
         return;
     }
 
-    // Jika gesture dimulai dari area tabel,
-    // jangan diproses sebagai gesture sidebar
+    // Jika gesture dimulai dari area tabel, jangan diproses sebagai gesture sidebar.
     if (!allowSidebarSwipe) {
         return;
     }
@@ -122,12 +241,10 @@ document.addEventListener("touchend", function(event) {
 
 });
 
-
 function handleSwipe() {
 
     const swipeDistance =
         touchEndX - touchStartX;
-
 
     /* Usap kanan */
 
@@ -139,7 +256,6 @@ function handleSwipe() {
         toggleSidebar();
 
     }
-
 
     /* Usap kiri */
 
@@ -154,98 +270,82 @@ function handleSwipe() {
 
 }
 
-
 menuToggle.addEventListener(
     "click",
     toggleSidebar
 );
-
 
 sidebarOverlay.addEventListener(
     "click",
     closeSidebar
 );
 
-
 /* =========================================
    TAMPILKAN HALAMAN
 ========================================= */
 
-function showPage(pageName) {
+async function showPage(pageName) {
+
+    // Pastikan CSS halaman siap sebelum halaman diaktifkan agar tidak tampil tanpa gaya.
+    if (pageStylesheets.has(pageName)) {
+        await loadPageStylesheet(pageName);
+    }
 
     pages.forEach(function(page) {
-
         page.classList.remove("active");
-
     });
 
-
-    const targetPage =
-        document.getElementById(
-            "page-" + pageName
-        );
-
-
+    const targetPage = document.getElementById("page-" + pageName);
     if (targetPage) {
-
         targetPage.classList.add("active");
-
     }
 
-    if (
-        pageName === "master-data" &&
-    typeof initMasterProduk === "function"
-  ) {
-
-    initMasterProduk();
-
-  }
-
-
-    /* Buka submenu saat halaman Master Data dipilih */
-
-    if (
-        pageName === "master-data" ||
-        pageName === "stok-toko" ||
-        pageName === "stok-gudang"
-    ) {
-        if (masterDataGroup) {
-            masterDataGroup.classList.add("open");
-        }
-
-        if (masterDataToggle) {
-            masterDataToggle.setAttribute("aria-expanded", "true");
-        }
+    try {
+        await loadPageFragment(pageName);
+    } catch (_) {
+        // The page displays its own loading error; keep navigation responsive.
     }
 
+    if (pageName === "master-data" && typeof initMasterProduk === "function") {
+        initMasterProduk();
+    }
 
-    /* Update menu aktif */
+    // Data Expired is initialized only after its HTML fragment has been inserted.
+    if (pageName === "data-expired" && typeof window.initExpiredPage === "function") {
+        await window.initExpiredPage();
+    }
+
+    if (pageName === "stok-toko" && typeof window.initStokTokoPage === "function") {
+        window.initStokTokoPage();
+    }
+
+    if (pageName === "stok-gudang" && typeof window.initStokGudangPage === "function") {
+        window.initStokGudangPage();
+    }
+
+    // Developer form elements exist only after their HTML fragment has loaded.
+    if (pageName === "developer" && typeof window.initDeveloperPage === "function") {
+        window.initDeveloperPage();
+    }
+
+    const isMasterDataPage = [
+        "master-data",
+        "stok-toko",
+        "stok-gudang"
+    ].includes(pageName);
+    const isLaporanPage = ["laporan", "data-expired"].includes(pageName);
+    setSubmenuState(masterDataGroup, masterDataToggle, isMasterDataPage);
+    setSubmenuState(laporanGroup, laporanToggle, isLaporanPage);
+
+    if (masterDataToggle) masterDataToggle.classList.toggle("active", isMasterDataPage);
+    if (laporanToggle) laporanToggle.classList.toggle("active", isLaporanPage);
 
     navItems.forEach(function(item) {
-
-        item.classList.remove("active");
-
-        if (
-            item.dataset.page === pageName
-        ) {
-
-            item.classList.add("active");
-
-        }
-
+        item.classList.toggle("active", item.dataset.page === pageName);
     });
 
-
-    /* Tutup menu HP */
-
-    if (window.innerWidth <= 700) {
-
-        closeSidebar();
-
-    }
-
+    if (window.innerWidth <= 700) closeSidebar();
 }
-
 
 /* =========================================
    KLIK MENU UTAMA
@@ -277,33 +377,19 @@ navItems.forEach(function(item) {
 
 });
 
-
 /* =========================================
-   FAST MENU
+   FAST MENU (delegated because Home is loaded on demand)
 ========================================= */
 
-fastCards.forEach(function(card) {
-
-    card.addEventListener(
-        "click",
-        function() {
-
-            const pageName =
-                this.dataset.page;
-
-            showPage(pageName);
-
-            history.pushState(
-                null,
-                "",
-                "#" + pageName
-            );
-
-        }
-    );
-
-});
-
+if (mainContent) {
+    mainContent.addEventListener("click", function(event) {
+        const card = event.target.closest(".fast-card[data-page]");
+        if (!card) return;
+        const pageName = card.dataset.page;
+        showPage(pageName);
+        history.pushState(null, "", "#" + pageName);
+    });
+}
 
 /* =========================================
    HALAMAN SAAT APLIKASI DIBUKA
@@ -317,14 +403,12 @@ function loadInitialPage() {
             ""
         );
 
-
     if (hash) {
 
         const targetPage =
             document.getElementById(
                 "page-" + hash
             );
-
 
         if (targetPage) {
 
@@ -336,18 +420,22 @@ function loadInitialPage() {
 
     }
 
-
     /* Default = Home */
 
     showPage("home");
 
 }
 
-
-/* Jalankan */
-
-loadInitialPage();
-
+/*
+   Jalankan setelah semua script pada index.html selesai dimuat.
+   Ini penting untuk tautan langsung ke Master Produk atau halaman Stok,
+   karena fungsi inisialisasinya didefinisikan pada file JS berikutnya.
+*/
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadInitialPage, { once: true });
+} else {
+    loadInitialPage();
+}
 
 /* =========================================
    BROWSER BACK / FORWARD
@@ -362,13 +450,11 @@ window.addEventListener(
     }
 );
 
-
 /* =========================================
    SETTING APLIKASI
 ========================================= */
 
 const SETTINGS_KEY = "toolsTokoSettings";
-
 
 /* Default setting */
 
@@ -389,39 +475,54 @@ const defaultSettings = {
     }
 };
 
-/* Ambil setting */
-
-function getSettings() {
-
-    const saved =
-        localStorage.getItem(SETTINGS_KEY);
-
-    if (saved) {
-
-        try {
-
-            return JSON.parse(saved);
-
-        } catch (error) {
-
-            console.warn(
-                "Setting rusak, menggunakan default."
-            );
-
-        }
-
-    }
-
-    localStorage.setItem(
-        SETTINGS_KEY,
-        JSON.stringify(defaultSettings)
-    );
-
+/* Buat salinan default agar objek cabang/user tidak berbagi referensi. */
+function createDefaultSettings() {
     return {
-        ...defaultSettings
+        ...defaultSettings,
+        cabang: { ...defaultSettings.cabang },
+        user: { ...defaultSettings.user }
     };
 }
 
+/* Ambil setting sekaligus pulihkan struktur jika data tersimpan tidak valid. */
+function getSettings() {
+    const saved = localStorage.getItem(SETTINGS_KEY);
+
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const cabang = parsed.cabang &&
+                    typeof parsed.cabang === "object" &&
+                    !Array.isArray(parsed.cabang)
+                    ? parsed.cabang
+                    : {};
+
+                const user = parsed.user &&
+                    typeof parsed.user === "object" &&
+                    !Array.isArray(parsed.user)
+                    ? parsed.user
+                    : {};
+
+                return {
+                    ...defaultSettings,
+                    ...parsed,
+                    cabang: { ...defaultSettings.cabang, ...cabang },
+                    user: { ...defaultSettings.user, ...user }
+                };
+            }
+
+            console.warn("Format pengaturan tidak valid, menggunakan default.");
+        } catch (error) {
+            console.warn("Setting rusak, menggunakan default.");
+        }
+    }
+
+    const settings = createDefaultSettings();
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    return settings;
+}
 
 /* Simpan setting */
 
@@ -449,7 +550,6 @@ function getCabangAktif() {
 
 }
 
-
 function setCabangAktif(id, nama) {
 
     const settings = getSettings();
@@ -463,7 +563,6 @@ function setCabangAktif(id, nama) {
 
 }
 
-
 function clearCabangAktif() {
 
     const settings = getSettings();
@@ -476,7 +575,6 @@ function clearCabangAktif() {
     saveSettings(settings);
 
 }
-
 
 /* =========================================
    USER AKTIF
@@ -495,7 +593,6 @@ function getUserAktif() {
     };
 
 }
-
 
 function setUserAktif(
     id,
@@ -518,7 +615,6 @@ function setUserAktif(
 
 }
 
-
 function clearUserAktif() {
 
     const settings = getSettings();
@@ -535,7 +631,6 @@ function clearUserAktif() {
 
 }
 
-
 /* =========================================
    ROLE USER
 ========================================= */
@@ -546,7 +641,6 @@ const availableRoles = [
     "gudang",
     "toko"
 ];
-
 
 /* =========================================
    HAK AKSES
@@ -584,7 +678,6 @@ const accessPermissions = {
 
 };
 
-
 /* =========================================
    CEK HAK AKSES
 ========================================= */
@@ -611,127 +704,6 @@ function hasAccess(pageName) {
     return permissions.includes(pageName);
 }
 
-
-/* Reset setting */
-
-function resetSettings() {
-
-    const yakin =
-        confirm(
-            "Yakin ingin mereset semua pengaturan aplikasi?"
-        );
-
-    if (!yakin) {
-        return;
-    }
-
-    localStorage.setItem(
-        SETTINGS_KEY,
-        JSON.stringify(defaultSettings)
-    );
-
-    alert(
-        "Pengaturan berhasil direset."
-    );
-
-}
-
-
-/* Tombol Reset */
-
-const resetSettingsButton =
-    document.getElementById("resetSettings");
-
-
-if (resetSettingsButton) {
-
-    resetSettingsButton.addEventListener(
-        "click",
-        resetSettings
-    );
-
-}
-
-
 /* Inisialisasi */
 
 getSettings();
-
-/* =========================================
-   FORM CABANG
-========================================= */
-
-const branchIdInput =
-    document.getElementById("branchId");
-
-const branchNameInput =
-    document.getElementById("branchName");
-
-const saveBranchButton =
-    document.getElementById("saveBranch");
-
-
-/* Tampilkan cabang yang tersimpan */
-
-function loadBranchSetting() {
-
-    const cabang =
-        getCabangAktif();
-
-    if (branchIdInput) {
-        branchIdInput.value =
-            cabang.id || "";
-    }
-
-    if (branchNameInput) {
-        branchNameInput.value =
-            cabang.nama || "";
-    }
-
-}
-
-
-/* Simpan cabang */
-
-if (saveBranchButton) {
-
-    saveBranchButton.addEventListener(
-        "click",
-        function() {
-
-            const id =
-                branchIdInput.value.trim();
-
-            const nama =
-                branchNameInput.value.trim();
-
-
-            if (!id || !nama) {
-
-                alert(
-                    "ID Cabang dan Nama Cabang harus diisi."
-                );
-
-                return;
-            }
-
-
-            setCabangAktif(
-                id,
-                nama
-            );
-
-
-            alert(
-                "Data cabang berhasil disimpan."
-            );
-
-        }
-    );
-
-}
-
-
-/* Load saat aplikasi dibuka */
-
-loadBranchSetting();

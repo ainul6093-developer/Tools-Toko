@@ -2,7 +2,6 @@
    MASTER PRODUK
 ========================================= */
 
-
 /* =========================================
    DATABASE INDEXEDDB
 ========================================= */
@@ -12,7 +11,6 @@ const PRODUCT_DB_VERSION = 1;
 const PRODUCT_STORE = "masterProduk";
 
 let productDB = null;
-
 
 /* =========================================
    PAGINATION
@@ -41,11 +39,9 @@ function openProductDatabase() {
             PRODUCT_DB_VERSION
         );
 
-
         request.onupgradeneeded = function(event) {
 
             const db = event.target.result;
-
 
             if (
                 !db.objectStoreNames.contains(
@@ -61,7 +57,6 @@ function openProductDatabase() {
                         }
                     );
 
-
                 store.createIndex(
                     "nama",
                     "nama",
@@ -74,7 +69,6 @@ function openProductDatabase() {
 
         };
 
-
         request.onsuccess = function(event) {
 
             productDB =
@@ -83,7 +77,6 @@ function openProductDatabase() {
             resolve(productDB);
 
         };
-
 
         request.onerror = function() {
 
@@ -96,7 +89,6 @@ function openProductDatabase() {
     });
 
 }
-
 
 /* =========================================
    SIMPAN PRODUK
@@ -117,12 +109,10 @@ function saveProducts(products) {
                 PRODUCT_STORE
             );
 
-
         /* Hapus data Master Produk lama */
 
         const clearRequest =
             store.clear();
-
 
         clearRequest.onerror = function() {
 
@@ -131,7 +121,6 @@ function saveProducts(products) {
             );
 
         };
-
 
         clearRequest.onsuccess = function() {
 
@@ -143,13 +132,11 @@ function saveProducts(products) {
 
         };
 
-
         transaction.oncomplete = function() {
 
             resolve();
 
         };
-
 
         transaction.onerror = function() {
 
@@ -162,7 +149,6 @@ function saveProducts(products) {
     });
 
 }
-
 
 /* =========================================
    HITUNG DATA
@@ -186,7 +172,6 @@ function countProducts() {
         const request =
             store.count();
 
-
         request.onsuccess = function() {
 
             resolve(
@@ -194,7 +179,6 @@ function countProducts() {
             );
 
         };
-
 
         request.onerror = function() {
 
@@ -207,7 +191,6 @@ function countProducts() {
     });
 
 }
-
 
 /* =========================================
    AMBIL SEMUA PRODUK
@@ -231,7 +214,6 @@ function getAllProducts() {
         const request =
             store.getAll();
 
-
         request.onsuccess = function() {
 
             resolve(
@@ -239,7 +221,6 @@ function getAllProducts() {
             );
 
         };
-
 
         request.onerror = function() {
 
@@ -253,6 +234,34 @@ function getAllProducts() {
 
 }
 
+/* =========================================
+   CEK JUMLAH PRODUK TANPA MEMUAT SEMUANYA
+========================================= */
+
+function getProductCount() {
+
+    return new Promise(function(resolve, reject) {
+
+        const transaction = productDB.transaction(
+            PRODUCT_STORE,
+            "readonly"
+        );
+
+        const request = transaction
+            .objectStore(PRODUCT_STORE)
+            .count();
+
+        request.onsuccess = function() {
+            resolve(request.result || 0);
+        };
+
+        request.onerror = function() {
+            reject(request.error);
+        };
+
+    });
+
+}
 
 /* =========================================
    BERSIHKAN NILAI
@@ -269,11 +278,9 @@ function cleanValue(value) {
 
     }
 
-
     return String(value).trim();
 
 }
-
 
 /* =========================================
    BERSIHKAN KODE PRODUK
@@ -290,10 +297,8 @@ function cleanCode(value) {
 
     }
 
-
     let code =
         String(value).trim();
-
 
     /*
        Hapus apostrof di awal.
@@ -308,7 +313,6 @@ function cleanCode(value) {
             /^'/,
             ""
         );
-
 
     /*
        Hilangkan .0 jika Excel
@@ -327,11 +331,9 @@ function cleanCode(value) {
 
     }
 
-
     return code;
 
 }
-
 
 /* =========================================
    FORMAT HARGA
@@ -349,10 +351,8 @@ function formatPrice(value) {
 
     }
 
-
     const number =
         Number(value);
-
 
     if (
         Number.isNaN(number)
@@ -362,13 +362,11 @@ function formatPrice(value) {
 
     }
 
-
     return new Intl.NumberFormat(
         "id-ID"
     ).format(number);
 
 }
-
 
 /* =========================================
    UPLOAD / BACA EXCEL
@@ -382,7 +380,6 @@ async function handleProductUpload(file) {
 
     }
 
-
     if (
         typeof XLSX === "undefined"
     ) {
@@ -395,17 +392,14 @@ async function handleProductUpload(file) {
 
     }
 
-
     try {
 
       showProductLoading(
     "Produk sedang di muat..."
 );
 
-
         const buffer =
             await file.arrayBuffer();
-
 
         const workbook =
             XLSX.read(
@@ -415,12 +409,10 @@ async function handleProductUpload(file) {
                 }
             );
 
-
         const firstSheet =
             workbook.Sheets[
                 workbook.SheetNames[0]
             ];
-
 
         const rows =
             XLSX.utils.sheet_to_json(
@@ -430,7 +422,6 @@ async function handleProductUpload(file) {
                     raw: true
                 }
             );
-
 
         if (
             !rows.length
@@ -445,7 +436,6 @@ async function handleProductUpload(file) {
             return;
 
         }
-
 
         const products =
             rows
@@ -524,7 +514,6 @@ async function handleProductUpload(file) {
 
                 });
 
-
         if (
             !products.length
         ) {
@@ -539,7 +528,6 @@ async function handleProductUpload(file) {
 
         }
 
-
         await saveProducts(
             products
         );
@@ -548,23 +536,23 @@ async function handleProductUpload(file) {
      productCache =
        products.slice();
 
+        if (typeof window.invalidateExpiredLookups === "function") {
+            window.invalidateExpiredLookups();
+        }
 
         currentProductPage = 1;
         currentProductSearch = "";
-
 
         const searchInput =
             document.getElementById(
                 "productSearch"
             );
 
-
         if (searchInput) {
 
             searchInput.value = "";
 
         }
-
 
         await renderProducts();
       
@@ -578,15 +566,12 @@ setTimeout(function() {
 
 }, 1200);
 
-      
-
     } catch (error) {
 
         console.error(
             "Gagal membaca Master Produk:",
             error
         );
-
 
         alert(
             "Gagal membaca file Excel.\n\n" +
@@ -596,7 +581,6 @@ setTimeout(function() {
     }
 
 }
-
 
 /* =========================================
    TAMPILKAN PRODUK
@@ -609,13 +593,11 @@ async function renderProducts() {
             "productTableBody"
         );
 
-
     if (!tbody) {
 
         return;
 
     }
-
 
 // =========================================
 // AMBIL DATA DARI CACHE
@@ -626,7 +608,6 @@ if (productCache === null) {
 
     productCache =
         await getAllProducts();
-
 
     // =====================================
     // URUTKAN SEPERTI POS
@@ -642,7 +623,6 @@ if (productCache === null) {
         const namaB =
             String(b.nama || "");
 
-
         const namaCompare =
             namaA.localeCompare(
                 namaB,
@@ -653,12 +633,10 @@ if (productCache === null) {
                 }
             );
 
-
         // Jika nama berbeda
         if (namaCompare !== 0) {
             return namaCompare;
         }
-
 
         // Jika nama sama → berdasarkan Kode
         return String(a.kode || "").localeCompare(
@@ -674,14 +652,11 @@ if (productCache === null) {
 
 }
 
-
 const allProducts =
     productCache;
 
-
 totalProductData =
     allProducts.length;
-
 
 let filteredProducts =
     allProducts;
@@ -695,7 +670,6 @@ let filteredProducts =
         const search =
             currentProductSearch
                 .toLowerCase();
-
 
         filteredProducts =
             allProducts.filter(
@@ -720,13 +694,11 @@ let filteredProducts =
 
     }
 
-
     const totalPages =
         Math.ceil(
             filteredProducts.length /
             PRODUCTS_PER_PAGE
         );
-
 
     if (
         totalPages > 0 &&
@@ -738,7 +710,6 @@ let filteredProducts =
 
     }
 
-
     if (
         totalPages === 0
     ) {
@@ -747,18 +718,15 @@ let filteredProducts =
 
     }
 
-
     const start =
         (
             currentProductPage - 1
         ) *
         PRODUCTS_PER_PAGE;
 
-
     const end =
         start +
         PRODUCTS_PER_PAGE;
-
 
     const pageProducts =
         filteredProducts.slice(
@@ -766,9 +734,7 @@ let filteredProducts =
             end
         );
 
-
     tbody.innerHTML = "";
-
 
     if (
         !pageProducts.length
@@ -792,7 +758,6 @@ let filteredProducts =
                     document.createElement(
                         "tr"
                     );
-
 
                 row.innerHTML = `
 
@@ -846,7 +811,6 @@ let filteredProducts =
 
                 `;
 
-
                 tbody.appendChild(
                     row
                 );
@@ -856,19 +820,16 @@ let filteredProducts =
 
     }
 
-
     updateProductInfo(
         allProducts.length,
         filteredProducts.length
     );
-
 
     updateProductPagination(
         totalPages
     );
 
 }
-
 
 /* =========================================
    ESCAPE HTML
@@ -900,7 +861,6 @@ function escapeHtml(value) {
 
 }
 
-
 /* =========================================
    INFO DATA
 ========================================= */
@@ -915,13 +875,11 @@ function updateProductInfo(
             "masterProductInfo"
         );
 
-
     if (!info) {
 
         return;
 
     }
-
 
     if (!total) {
 
@@ -932,13 +890,13 @@ function updateProductInfo(
 
     }
 
-
     if (
         currentProductSearch
     ) {
 
         info.textContent =
-            `${filtered.toLocaleString("id-ID")} hasil dari ${total.toLocaleString("id-ID")} produk`;
+            `${filtered.toLocaleString("id-ID")} hasil dari ` +
+            `${total.toLocaleString("id-ID")} produk`;
 
     } else {
 
@@ -948,7 +906,6 @@ function updateProductInfo(
     }
 
 }
-
 
 /* =========================================
    PAGINATION
@@ -963,18 +920,15 @@ function updateProductPagination(
             "productPageInfo"
         );
 
-
     const prev =
         document.getElementById(
             "prevProductPage"
         );
 
-
     const next =
         document.getElementById(
             "nextProductPage"
         );
-
 
     if (pageInfo) {
 
@@ -985,14 +939,12 @@ function updateProductPagination(
 
     }
 
-
     if (prev) {
 
         prev.disabled =
             currentProductPage <= 1;
 
     }
-
 
     if (next) {
 
@@ -1002,7 +954,6 @@ function updateProductPagination(
     }
 
 }
-
 
 /* =========================================
    LOADING POPUP
@@ -1031,7 +982,7 @@ function showProductLoading(message = "Loading") {
 
             <div class="product-loading-spinner"></div>
 
-            <div class="product-loading-text">
+            <div class="product-loading-text loading-dots">
                 ${message}
             </div>
 
@@ -1071,7 +1022,6 @@ function showProductLoadingSuccess(total) {
     popup.classList.add("success");
 }
 
-
 function hideProductLoading() {
 
     const popup =
@@ -1084,10 +1034,8 @@ function hideProductLoading() {
         popup.classList.remove("show");
 
     }
-  
 
 }
-
 
 /* =========================================
    EVENT UPLOAD
@@ -1098,7 +1046,6 @@ const productFile =
         "productFile"
     );
 
-
 if (productFile) {
 
     productFile.addEventListener(
@@ -1108,11 +1055,9 @@ if (productFile) {
             const file =
                 event.target.files[0];
 
-
             handleProductUpload(
                 file
             );
-
 
             event.target.value = "";
 
@@ -1120,7 +1065,6 @@ if (productFile) {
     );
 
 }
-
 
 /* =========================================
    EVENT SEARCH
@@ -1130,7 +1074,6 @@ const productSearch =
     document.getElementById(
         "productSearch"
     );
-
 
 if (productSearch) {
 
@@ -1145,10 +1088,8 @@ if (productSearch) {
 
             currentProductPage = 1;
 
-
             // Batalkan pencarian sebelumnya
             clearTimeout(searchTimer);
-
 
             // Tunggu sebentar setelah user berhenti mengetik
             searchTimer = setTimeout(
@@ -1174,12 +1115,10 @@ const prevProductPage =
         "prevProductPage"
     );
 
-
 const nextProductPage =
     document.getElementById(
         "nextProductPage"
     );
-
 
 if (prevProductPage) {
 
@@ -1202,7 +1141,6 @@ if (prevProductPage) {
 
 }
 
-
 if (nextProductPage) {
 
     nextProductPage.addEventListener(
@@ -1218,7 +1156,6 @@ if (nextProductPage) {
 
 }
 
-
 /* =========================================
    HAPUS SEMUA DATA
 ========================================= */
@@ -1228,7 +1165,6 @@ const clearProductData =
         "clearProductData"
     );
 
-
 if (clearProductData) {
 
     clearProductData.addEventListener(
@@ -1237,7 +1173,6 @@ if (clearProductData) {
 
             const total =
                 await countProducts();
-
 
             if (!total) {
 
@@ -1249,12 +1184,10 @@ if (clearProductData) {
 
             }
 
-
             const yakin =
                 confirm(
                     `Hapus ${total.toLocaleString("id-ID")} data Master Produk?`
                 );
-
 
             if (!yakin) {
 
@@ -1262,20 +1195,17 @@ if (clearProductData) {
 
             }
 
-
             const transaction =
                 productDB.transaction(
                     PRODUCT_STORE,
                     "readwrite"
                 );
 
-
             transaction
                 .objectStore(
                     PRODUCT_STORE
                 )
                 .clear();
-
 
             transaction.oncomplete =
                 function() {
@@ -1291,16 +1221,13 @@ if (clearProductData) {
                             "productSearch"
                         );
 
-
                     if (searchInput) {
 
                         searchInput.value = "";
 
                     }
 
-
                     renderProducts();
-
 
                     alert(
                         "Data Master Produk berhasil dihapus."
@@ -1313,46 +1240,46 @@ if (clearProductData) {
 
 }
 
-
 /* =========================================
    INISIALISASI
 ========================================= */
 
-async function initMasterProduk(
-    showLoading = false
-) {
+// Popup sukses saat membuka Master Produk hanya sekali
+// selama halaman aplikasi masih terbuka.
+let productInitialLoadPopupShown = false;
 
-    if (showLoading) {
-
-        showProductLoading("Loading");
-
-    }
+async function initMasterProduk() {
 
     try {
 
         await openProductDatabase();
 
+        const productCount = await getProductCount();
+
+        // Popup hanya muncul pada pembukaan pertama jika data tersedia.
+        const showInitialPopup =
+            productCount > 0 &&
+            !productInitialLoadPopupShown;
+
+        if (showInitialPopup) {
+            productInitialLoadPopupShown = true;
+            showProductLoading("Sedang memuat data produk");
+        }
+
         await renderProducts();
 
-        if (showLoading) {
+        if (showInitialPopup && totalProductData > 0) {
 
-            if (totalProductData > 0) {
+            showProductLoadingSuccess(totalProductData);
 
-                showProductLoadingSuccess(
-                    totalProductData
-                );
-
-                setTimeout(function() {
-
-                    hideProductLoading();
-
-                }, 1200);
-
-            } else {
-
+            setTimeout(function() {
                 hideProductLoading();
+            }, 1200);
 
-            }
+        } else if (showInitialPopup) {
+
+            // Jika ternyata tidak ada data, popup tidak ditampilkan.
+            hideProductLoading();
 
         }
 
@@ -1363,32 +1290,8 @@ async function initMasterProduk(
             error
         );
 
-        if (showLoading) {
-
-            hideProductLoading();
-
-        }
+        hideProductLoading();
 
     }
-
-}
-
-const navigationEntry =
-    performance.getEntriesByType(
-        "navigation"
-    )[0];
-
-const isPageRefresh =
-    navigationEntry &&
-    navigationEntry.type === "reload";
-
-
-if (
-    window.location.hash === "#master-data"
-) {
-
-    initMasterProduk(
-        isPageRefresh
-    );
 
 }
