@@ -1,1 +1,270 @@
+<div class="page-header">
+    <div class="page-header-icon">📅</div>
+    <div>
+        <h2>Data Expired</h2>
+        <p>Kelola informasi tanggal kedaluwarsa barang.</p>
+    </div>
+</div>
 
+<div class="expired-data-panel">
+    <div class="expired-toolbar">
+        <span class="expired-record-count" id="expiredRecordCount">0 data</span>
+        <button class="expired-add-button" id="addExpiredData" type="button">
+            + Tambah Data
+        </button>
+    </div>
+    <div class="expired-search-wrap">
+        <input
+            aria-label="Cari data expired"
+            class="expired-search-input"
+            id="expiredSearch"
+            placeholder="Cari barcode atau nama barang..."
+            type="search">
+    </div>
+    <div class="expired-table-wrapper">
+        <table class="expired-table">
+            <thead>
+                <tr>
+                    <th>Barcode</th>
+                    <th>Nama barang</th>
+                    <th>Rak</th>
+                    <th>Tgl Expired</th>
+                    <th>Keterangan</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="expiredTableBody">
+                <tr>
+                    <td class="expired-empty-cell" colspan="7">Memuat data expired...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FORM MULTI-INPUT DATA EXPIRED -->
+
+<div aria-hidden="true" class="expired-modal-backdrop" hidden="" id="expiredModal">
+    <section
+        aria-labelledby="expiredModalTitle"
+        aria-modal="true"
+        class="expired-modal"
+        role="dialog">
+        <header class="expired-modal-header">
+            <div>
+                <h3 id="expiredModalTitle">Tambah Data Expired</h3>
+                <p id="expiredModalDescription">Tambahkan beberapa barang, lalu simpan sekaligus.</p>
+            </div>
+            <button
+                aria-label="Tutup form"
+                class="expired-modal-close"
+                id="closeExpiredModal"
+                type="button">
+                ×
+            </button>
+        </header>
+        <div class="expired-modal-body">
+            <div class="expired-step-one-controls">
+                <div class="expired-execution-row">
+                    <label class="expired-field expired-execution-field">
+                        <span>Eksekusi</span>
+                        <select id="expiredExecution">
+                            <option selected="" value="H - 1 Bulan">H - 1 Bulan</option>
+                            <option value="H - 2 Bulan">H - 2 Bulan</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="expired-field expired-product-field">
+                    <div class="expired-product-searchline">
+                        <div class="expired-autocomplete-wrap">
+                            <input
+                                aria-label="Cari nama barang atau barcode"
+                                autocomplete="off"
+                                id="expiredProductSearch"
+                                placeholder="Search Autocomplete"
+                                type="search">
+                            <div
+                                class="expired-autocomplete"
+                                hidden=""
+                                id="expiredAutocomplete"></div>
+                        </div>
+                        <button
+                            class="expired-scan-button"
+                            id="scanExpiredBarcode"
+                            type="button"
+                            aria-label="Scan barcode">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                                <path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                                <path d="M21 16v3a2 2 0 0 1-2 2h-3"/>
+                                <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+                            </svg>
+                            <span class="expired-scan-label">Scan</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <p aria-live="polite" class="expired-lookup-status" id="expiredLookupStatus">
+                Siapkan data referensi produk...
+            </p>
+            <div
+                aria-live="polite"
+                class="expired-lookup-result"
+                hidden=""
+                id="expiredLookupResult">
+                <div class="expired-lookup-result-top">
+                    <strong id="expiredLookupResultBarcode"></strong>
+                    <span id="expiredLookupResultRack"></span>
+                </div>
+                <div class="expired-lookup-result-name" id="expiredLookupResultName"></div>
+            </div>
+            <div aria-hidden="true" class="expired-picked-product">
+                <label class="expired-field expired-picked-code">
+                    <span>Barcode</span>
+                    <input
+                        id="expiredSelectedBarcode"
+                        placeholder="Otomatis"
+                        readonly=""
+                        type="text">
+                </label>
+                <label class="expired-field expired-picked-name">
+                    <span>Nama barang</span>
+                    <input
+                        id="expiredSelectedName"
+                        placeholder="Pilih barang dari pencarian"
+                        readonly=""
+                        type="text">
+                </label>
+                <label class="expired-field expired-picked-rack">
+                    <span>Rak (Stok Toko)</span>
+                    <input
+                        id="expiredSelectedRack"
+                        placeholder="Otomatis"
+                        readonly=""
+                        type="text">
+                </label>
+            </div>
+            <div class="expired-date-row">
+                <span class="expired-date-label">Tgl Expired</span>
+                <label class="expired-field expired-month-field">
+                    <select aria-label="Bulan expired" id="expiredMonth">
+                        <option value="">Bulan</option>
+                        <option value="1">Januari</option>
+                        <option value="2">Februari</option>
+                        <option value="3">Maret</option>
+                        <option value="4">April</option>
+                        <option value="5">Mei</option>
+                        <option value="6">Juni</option>
+                        <option value="7">Juli</option>
+                        <option value="8">Agustus</option>
+                        <option value="9">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11">November</option>
+                        <option value="12">Desember</option>
+                    </select>
+                </label>
+                <label class="expired-field expired-year-field">
+                    <input
+                        aria-label="Tahun expired"
+                        id="expiredYear"
+                        inputmode="numeric"
+                        max="2100"
+                        min="2000"
+                        placeholder="2026"
+                        type="number">
+                </label>
+                <button class="expired-add-draft-button" id="expiredOkBtn" type="button">
+                    Oke
+                </button>
+            </div>
+            <div class="expired-draft-section">
+                <div class="expired-draft-heading">
+                    <h4>Daftar input</h4>
+                </div>
+                <div class="expired-table-wrapper expired-draft-wrapper">
+                    <table class="expired-table expired-draft-table">
+                        <thead>
+                            <tr>
+                                <th>Barcode</th>
+                                <th>Nama barang</th>
+                                <th>Rak</th>
+                                <th>Tgl Expired</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expiredDraftTableBody">
+                            <tr>
+                                <td class="expired-empty-cell" colspan="5">
+                                    Belum ada barang di daftar simpan.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <footer class="expired-modal-footer">
+            <button class="expired-cancel-button" id="cancelExpiredModal" type="button">
+                Batal
+            </button>
+            <button class="expired-save-button" disabled="" id="saveExpiredBatch" type="button">
+                Simpan
+            </button>
+        </footer>
+    </section>
+</div>
+
+<!-- PEMINDAI BARCODE KAMERA (jika didukung browser) -->
+
+<div aria-hidden="true" class="expired-camera-backdrop" hidden="" id="expiredCameraModal">
+    <section
+        aria-labelledby="expiredCameraTitle"
+        aria-modal="true"
+        class="expired-camera-card"
+        role="dialog">
+        <header class="expired-camera-header">
+            <div>
+                <h3 id="expiredCameraTitle">Scan Barcode</h3>
+                <p>Arahkan barcode ke kamera belakang perangkat.</p>
+            </div>
+            <button
+                aria-label="Tutup pemindai"
+                class="expired-modal-close"
+                id="closeExpiredCamera"
+                type="button">
+                ×
+            </button>
+        </header>
+        <div class="expired-camera-video-wrap">
+            <video autoplay="" id="expiredCameraVideo" muted="" playsinline=""></video>
+            <span aria-hidden="true" class="expired-camera-guide"></span>
+        </div>
+        <p class="expired-camera-status" id="expiredCameraStatus">Menyiapkan kamera...</p>
+        <div class="expired-camera-footer">
+            <button class="expired-cancel-button" id="stopExpiredCamera" type="button">
+                Tutup Kamera
+            </button>
+        </div>
+    </section>
+</div>
+
+<!-- POPUP SUKSES -->
+
+<div aria-hidden="true" class="expired-success-backdrop" hidden="" id="expiredSuccessPopup">
+    <div aria-live="polite" class="expired-success-card" role="status">
+        <div class="expired-success-icon" id="expiredSuccessIcon">✓</div>
+        <h3 id="expiredSuccessTitle">Berhasil</h3>
+        <p id="expiredSuccessMessage">Data expired berhasil disimpan.</p>
+    </div>
+</div>
