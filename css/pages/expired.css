@@ -77,7 +77,29 @@
     border-radius: 8px;
     background: #ffffff;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
 }
+
+.expired-scroll-indicator {
+    position: relative;
+    width: calc(100% - 4px);
+    height: 6px;
+    margin: 7px auto 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+    box-sizing: border-box;
+}
+
+.expired-scroll-indicator-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: #64748b;
+}
+
 
 .expired-table {
     width: 100%;
@@ -201,7 +223,7 @@
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: pan-y;
+    touch-action: pan-x pan-y;
 }
 
 .expired-status-cell:focus-visible {
