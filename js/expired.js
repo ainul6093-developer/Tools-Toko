@@ -319,12 +319,12 @@
 
         el("expiredSelectedBarcode").value = code;
         el("expiredSelectedName").value = name;
-        el("expiredSelectedRack").value = rack || "Rak tidak ditemukan";
+        el("expiredSelectedRack").value = rack;
 
         const resultCard = el("expiredLookupResult");
         if (resultCard) {
             el("expiredLookupResultBarcode").textContent = code;
-            el("expiredLookupResultRack").textContent = rack || "Rak tidak ditemukan";
+            el("expiredLookupResultRack").textContent = rack;
             el("expiredLookupResultName").textContent =
                 name || "Nama barang tidak tersedia";
             resultCard.hidden = false;
@@ -334,13 +334,12 @@
         el("expiredProductSearch").placeholder = "Ketik nama barang...";
         el("expiredAutocomplete").hidden = true;
 
-        if (!rack) {
-            setLookupMessage(
-                "Nama barang ditemukan di Master Produk, " +
-                "tetapi rak tidak ditemukan di Stok Toko."
-            );
-        } else {
-            setLookupMessage(`Barang dipilih. Rak ${rack} digunakan pada form.`);
+        if (rack) {
+        setLookupMessage(`Barang dipilih. Rak ${rack} digunakan pada form.`);
+        } 
+        
+        else {
+        setLookupMessage("");
         }
 
         state.scanMode = false;
@@ -385,35 +384,42 @@
         return expiryMonth - currentMonth;
     }
 
-    function getKeterangan(record, now = new Date()) {
-        const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
-        if (monthsUntilExpiry === null) return "—";
 
-        if (monthsUntilExpiry > 0) {
-            return `H - ${monthsUntilExpiry} Bulan`;
-        }
+function getKeterangan(record, now = new Date()) {
+    const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
 
-        if (monthsUntilExpiry < 0) {
-            return `H + ${Math.abs(monthsUntilExpiry)} Bulan`;
-        }
-
-        return "H (Bulan Ini)";
+    if (monthsUntilExpiry === null) {
+        return "—";
     }
 
-    function getExecutionLeadMonths(record) {
-        const execution = String(record.eksekusi || "H - 1 Bulan");
-        const match = execution.match(/H\s*-\s*(\d+)\s*bulan/i);
-        const months = match ? Number(match[1]) : 1;
-
-        return Number.isInteger(months) && months > 0 ? months : 1;
+    if (monthsUntilExpiry > 0) {
+        return `- ${monthsUntilExpiry} Bulan`;
     }
 
+    if (monthsUntilExpiry < 0) {
+        return `+ ${Math.abs(monthsUntilExpiry)} Bulan`;
+    }
+
+    return "Bulan Ini";
+}
+
+  
+
+function getExecutionLeadMonths(record) {
+    const execution = String(record.eksekusi || "- 1 Bulan");
+    const match = execution.match(/(?:H\s*)?-\s*(\d+)\s*bulan/i);
+    const months = match ? Number(match[1]) : 1;
+
+    return Number.isInteger(months) && months > 0 ? months : 1;
+}
+
+  
     function getStatus(record, now = new Date()) {
         const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
 
         if (monthsUntilExpiry === null) {
             return {
-                label: "Perlu Eksekusi",
+                label: "Perlu Eksekusi / Update",
                 className: "expired-status-warning"
             };
         }
@@ -421,7 +427,7 @@
         // Jika bulan expired sudah tiba atau terlewati, harus segera diperbarui.
         if (monthsUntilExpiry <= 0) {
             return {
-                label: "Harus Eksekusi / Update Sekarang",
+                label: "Harus Eksekusi /\nUpdate Sekarang",
                 className: "expired-status-urgent"
             };
         }
@@ -429,7 +435,7 @@
         // Setiap produk mengikuti batas eksekusi yang dipilih pada form input.
         if (monthsUntilExpiry <= getExecutionLeadMonths(record)) {
             return {
-                label: "Perlu Eksekusi",
+                label: "Perlu Eksekusi / Update",
                 className: "expired-status-warning"
             };
         }
@@ -531,7 +537,7 @@
                 const row = document.createElement("tr");
                 addCell(row, record.barcode);
                 addCell(row, record.nama);
-                addCell(row, record.rak || "Rak tidak ditemukan");
+                addCell(row, record.rak, true);
                 addCell(row, formatMonthYear(record.bulan, record.tahun));
                 // Keterangan dihitung dari bulan expired dibanding bulan perangkat.
                 addCell(row, getKeterangan(record, currentDate));
@@ -566,12 +572,32 @@
         if (count) count.textContent = `${filtered.length.toLocaleString("id-ID")} data`;
     }
 
-    function addCell(row, value) {
-        const cell = document.createElement("td");
-        cell.textContent = String(value ?? "—") || "—";
-        row.appendChild(cell);
+
+function addCell(row, value, blankWhenEmpty = false) {
+    const cell = document.createElement("td");
+    const text = String(value ?? "").trim();
+
+    if (blankWhenEmpty) {
+        const placeholderValues = [
+            "",
+            "—",
+            "-",
+            "rak tidak ditemukan"
+        ];
+
+        const normalizedText = text.toLocaleLowerCase("id-ID");
+
+        cell.textContent = placeholderValues.includes(normalizedText)
+            ? ""
+            : text;
+    } else {
+        cell.textContent = text || "—";
     }
 
+    row.appendChild(cell);
+}
+
+  
     async function loadRecords() {
         if (!state.db) state.db = await openExpiredDatabase();
         const records = await readAll(state.db, EXPIRED_STORE);
@@ -733,7 +759,7 @@
                 const row = document.createElement("tr");
                 addCell(row, draft.barcode);
                 addCell(row, draft.nama);
-                addCell(row, draft.rak || "Rak tidak ditemukan");
+                addCell(row, draft.rak, true);
                 addCell(row, formatMonthYear(draft.bulan, draft.tahun));
                 const action = document.createElement("td");
                 const remove = document.createElement("button");
