@@ -100,6 +100,10 @@
     border-left: 1px solid #e2e8f0;
 }
 
+.expired-table th:nth-child(6) {
+    text-align: center;
+}
+
 @media (max-width: 700px) {
     .expired-data-panel {
         padding: 14px;
@@ -151,33 +155,47 @@
     border-bottom: 0;
 }
 
+
+
+
+
+
 .expired-status-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    width: fit-content;
     max-width: 145px;
-    padding: 5px 9px;
-    border-radius: 999px;
+    min-height: 30px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    border-radius: 12px;
     font-size: 11px;
     font-weight: 700;
-    line-height: 1.35;
+    line-height: 1.2;
     text-align: center;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: pre-line;
+    overflow-wrap: break-word;
+    word-break: normal;
 }
 
+
 .expired-status-warning {
-    color: #92400e;
-    background: #fef3c7;
+    color: #991b1b;
+    background: #fee2e2;
 }
 
 .expired-status-urgent {
-    color: #991b1b;
-    background: #fee2e2;
+    color: #ffffff;
+    background: #b91c1c;
 }
 
 .expired-status-safe {
     color: #166534;
     background: #dcfce7;
 }
+
 
 .expired-status-cell {
     cursor: pointer;
