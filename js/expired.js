@@ -1285,6 +1285,59 @@ function addCell(row, value, blankWhenEmpty = false) {
         });
     }
 
+    function setupHorizontalScrollIndicator() {
+        const tableBody = el("expiredTableBody");
+        const wrapper = tableBody?.closest(".expired-table-wrapper");
+
+        if (
+            !wrapper ||
+            wrapper.dataset.scrollIndicatorReady === "true"
+        ) {
+            return;
+        }
+
+        const indicator = document.createElement("div");
+        indicator.className = "expired-scroll-indicator";
+        indicator.setAttribute("aria-hidden", "true");
+
+        const thumb = document.createElement("span");
+        thumb.className = "expired-scroll-indicator-thumb";
+        indicator.appendChild(thumb);
+        wrapper.insertAdjacentElement("afterend", indicator);
+        wrapper.dataset.scrollIndicatorReady = "true";
+
+        const updateIndicator = () => {
+            const visibleWidth = wrapper.clientWidth;
+            const contentWidth = wrapper.scrollWidth;
+
+            if (!visibleWidth || !contentWidth) return;
+
+            const visibleRatio = Math.min(1, visibleWidth / contentWidth);
+            const thumbWidth = Math.min(100, Math.max(12, visibleRatio * 100));
+            const maxScroll = Math.max(0, contentWidth - visibleWidth);
+            const maxThumbTravel = 100 - thumbWidth;
+            const thumbPosition = maxScroll > 0
+                ? (wrapper.scrollLeft / maxScroll) * maxThumbTravel
+                : 0;
+
+            thumb.style.width = `${thumbWidth}%`;
+            thumb.style.left = `${thumbPosition}%`;
+        };
+
+        wrapper.addEventListener("scroll", updateIndicator, { passive: true });
+        window.addEventListener("resize", updateIndicator, { passive: true });
+
+        if (typeof ResizeObserver === "function") {
+            const observer = new ResizeObserver(updateIndicator);
+            observer.observe(wrapper);
+
+            const table = wrapper.querySelector("table");
+            if (table) observer.observe(table);
+        }
+
+        updateIndicator();
+    }
+
     let initialized = false;
     let initPromise = null;
 
@@ -1295,6 +1348,7 @@ function addCell(row, value, blankWhenEmpty = false) {
         if (initPromise) return initPromise;
 
         initPromise = (async () => {
+            setupHorizontalScrollIndicator();
             setupEvents();
             try {
                 state.db = await openExpiredDatabase();
