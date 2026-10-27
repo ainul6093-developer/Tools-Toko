@@ -182,13 +182,13 @@
 
 
 .expired-status-warning {
-    color: #991b1b;
-    background: #fee2e2;
+    color: #ffffff;
+    background: #b91c1c;
 }
 
 .expired-status-urgent {
-    color: #ffffff;
-    background: #b91c1c;
+    color: #991b1b;
+    background: #fee2e2;
 }
 
 .expired-status-safe {
