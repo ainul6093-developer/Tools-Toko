@@ -621,7 +621,7 @@ function addCell(row, value, blankWhenEmpty = false) {
         const currentYear = new Date().getFullYear();
         el("expiredMonth").value = "";
         el("expiredYear").value = String(currentYear);
-        el("expiredExecution").value = "H - 1 Bulan";
+        el("expiredExecution").value = "- 1 Bulan";
         const resultCard = el("expiredLookupResult");
         if (resultCard) resultCard.hidden = true;
         state.scanMode = false;
@@ -660,7 +660,9 @@ function addCell(row, value, blankWhenEmpty = false) {
         el("expiredMonth").value = String(record.bulan || "");
         el("expiredYear").value = String(record.tahun || new Date().getFullYear());
         el("expiredExecution").value =
-            record.eksekusi === "H - 2 Bulan" ? "H - 2 Bulan" : "H - 1 Bulan";
+            /- 2 Bulan/i.test(record.eksekusi || "")
+            ? "- 2 Bulan"
+            : "- 1 Bulan";
         setLookupMessage("Data produk otomatis diambil dari baris yang dipilih.");
 
         modal.hidden = false;
@@ -709,7 +711,7 @@ function addCell(row, value, blankWhenEmpty = false) {
 
         const barcode = normalizeCode(product.kode);
         const stock = state.stockIndex.get(barcode);
-        const execution = el("expiredExecution").value || "H - 1 Bulan";
+        const execution = el("expiredExecution").value || "- 1 Bulan";
         const key = getRecordKey({ barcode, bulan: month, tahun: year });
         const existingDraftIndex = state.drafts.findIndex(
             draft => getRecordKey(draft) === key
@@ -818,7 +820,7 @@ function addCell(row, value, blankWhenEmpty = false) {
             bulan: month,
             tahun: year,
             tahunBulan: `${year}-${String(month).padStart(2, "0")}`,
-            eksekusi: el("expiredExecution").value || "H - 1 Bulan",
+            eksekusi: el("expiredExecution").value || "- 1 Bulan",
             updatedAt: new Date().toISOString()
         };
 
@@ -930,7 +932,7 @@ function addCell(row, value, blankWhenEmpty = false) {
                             tahunBulan: `${draft.tahun}-${
                                 String(draft.bulan).padStart(2, "0")
                             }`,
-                            eksekusi: draft.eksekusi || "H - 1 Bulan",
+                            eksekusi: draft.eksekusi || "- 1 Bulan",
                             createdAt: new Date().toISOString()
                         });
                     });
