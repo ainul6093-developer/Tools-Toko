@@ -23,6 +23,23 @@ body {
     min-height: 100vh;
 }
 
+/* Komponen pencarian seragam di seluruh menu */
+
+.tools-search {
+    position: relative;
+}
+
+.tools-search::before {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    content: "🔎";
+    font-size: 21px;
+    line-height: 1;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
 /*=========================================
    HEADER
 =========================================*/
