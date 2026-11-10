@@ -5,8 +5,8 @@
         <meta charset="utf-8">
         <meta content="width=device-width, initial-scale=1.0" name="viewport">
         <title>Tools Toko</title>
-        <link href="css/style.css?v=15" rel="stylesheet">
-        <link href="css/pages/master.css?v=15" rel="stylesheet">
+        <link href="css/style.css?v=17" rel="stylesheet">
+        <link href="css/pages/master.css?v=16" rel="stylesheet">
         <link href="css/pages/home.css?v=18" rel="stylesheet">
     </head>
     <body>
@@ -147,11 +147,10 @@
                         </div>
                     </div>
                     <!-- SEARCH -->
-                    <div class="master-search">
-                        <span>🔎</span>
+                    <div class="master-search tools-search">
                         <input
                             id="productSearch"
-                            placeholder="Cari kode atau nama produk..."
+                            placeholder="Search...."
                             type="search">
                     </div>
                     <!-- TABLE -->
@@ -227,7 +226,7 @@
                 aria-busy="false"
                 class="page"
                 data-page-fragment="laporan"
-                id="page-laporan"></section>
+                id="page-laporan"></section>     
             <!-- =====================
                  ADMIN
                  ====================== -->
@@ -268,13 +267,14 @@
                 data-page-fragment="cek-stok"
                 id="page-cek-stok"></section>
         </main>
-        <script src="js/app.js?v=19"></script>
+        <script src="js/app.js?v=27"></script>
         <!-- PEMBACA EXCEL -->
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <script src="js/stok-toko.js?v=17"></script>
         <script src="js/stok-gudang.js?v=17"></script>
         <script src="js/master.js?v=15"></script>
-        <script src="js/expired.js?v=22"></script>
+        <script src="https://unpkg.com/html5-qrcode"></script>
+        <script src="js/expired.js?v=35"></script>
         <script src="js/developer.js?v=15"></script>
     </body>
 </html>
