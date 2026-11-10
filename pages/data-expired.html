@@ -7,40 +7,68 @@
 </div>
 
 <div class="expired-data-panel">
-    <div class="expired-toolbar">
-        <span class="expired-record-count" id="expiredRecordCount">0 data</span>
-        <button class="expired-add-button" id="addExpiredData" type="button">
-            + Tambah Data
-        </button>
+    <div id="expiredListView">
+        <div class="expired-toolbar">
+            <span class="expired-record-count" id="expiredRecordCount">0 data</span>
+            <div class="expired-toolbar-actions">
+                <button
+                    aria-label="Buka form eksekusi"
+                    class="expired-execute-button"
+                    id="openExpiredExecution"
+                    type="button">
+                    <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        viewBox="0 0 24 24">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    <span>Eksekusi</span>
+                </button>
+                <button class="expired-add-button" id="addExpiredData" type="button">
+                    + Tambah Data
+                </button>
+            </div>
+        </div>
+
+        <div class="expired-search-wrap tools-search">
+            <input
+                aria-label="Cari data expired"
+                class="expired-search-input"
+                id="expiredSearch"
+                placeholder="Search...."
+                type="search">
+        </div>
+
+        <div class="expired-table-wrapper">
+            <table class="expired-table">
+                <thead>
+                    <tr>
+                        <th>Barcode</th>
+                        <th>Nama barang</th>
+                        <th>Rak</th>
+                        <th>Tgl Expired</th>
+                        <th>Keterangan</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="expiredTableBody">
+                    <tr>
+                        <td class="expired-empty-cell" colspan="7">
+                            Memuat data expired...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
-    <div class="expired-search-wrap">
-        <input
-            aria-label="Cari data expired"
-            class="expired-search-input"
-            id="expiredSearch"
-            placeholder="Cari barcode atau nama barang..."
-            type="search">
-    </div>
-    <div class="expired-table-wrapper">
-        <table class="expired-table">
-            <thead>
-                <tr>
-                    <th>Barcode</th>
-                    <th>Nama barang</th>
-                    <th>Rak</th>
-                    <th>Tgl Expired</th>
-                    <th>Keterangan</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="expiredTableBody">
-                <tr>
-                    <td class="expired-empty-cell" colspan="7">Memuat data expired...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+
+    <section
+        aria-label="Rincian data expired"
+        aria-hidden="true"
+        class="expired-modal-backdrop expired-detail-backdrop"
+        hidden
+        id="expiredDetailView"></section>
 </div>
 
 <!-- FORM MULTI-INPUT DATA EXPIRED -->
@@ -77,13 +105,24 @@
                 </div>
                 <div class="expired-field expired-product-field">
                     <div class="expired-product-searchline">
-                        <div class="expired-autocomplete-wrap">
+                        <div class="expired-autocomplete-wrap tools-search">
                             <input
                                 aria-label="Cari nama barang atau barcode"
                                 autocomplete="off"
                                 id="expiredProductSearch"
-                                placeholder="Search Autocomplete"
+                                placeholder="Search...."
                                 type="search">
+                            <button
+                                aria-label="Hapus pencarian"
+                                class="expired-search-clear"
+                                hidden
+                                type="button">
+                                <svg
+                                    aria-hidden="true"
+                                    viewBox="0 0 24 24">
+                                    <path d="M6 6l12 12M18 6L6 18"></path>
+                                </svg>
+                            </button>
                             <div
                                 class="expired-autocomplete"
                                 hidden=""
@@ -155,23 +194,46 @@
                         type="text">
                 </label>
             </div>
-            <div class="expired-date-row">
+            <div class="expired-date-toggle-row">
+                <label class="expired-date-toggle" for="expiredDateToggle">
+                    <span>Tanggal</span>
+                    <span class="expired-date-switch">
+                        <input
+                            aria-label="Aktifkan input tanggal expired"
+                            id="expiredDateToggle"
+                            type="checkbox">
+                        <span class="expired-date-switch-track"></span>
+                    </span>
+                </label>
+            </div>
+            <div class="expired-date-row" id="expiredDateRow">
                 <span class="expired-date-label">Tgl Expired</span>
+                <label class="expired-field expired-day-field" id="expiredDayField" hidden>
+                    <input
+                        aria-label="Tanggal expired"
+                        id="expiredDay"
+                        inputmode="numeric"
+                        max="31"
+                        min="1"
+                        placeholder="Tgl"
+                        step="1"
+                        type="number">
+                </label>
                 <label class="expired-field expired-month-field">
                     <select aria-label="Bulan expired" id="expiredMonth">
                         <option value="">Bulan</option>
-                        <option value="1">Januari</option>
-                        <option value="2">Februari</option>
-                        <option value="3">Maret</option>
-                        <option value="4">April</option>
-                        <option value="5">Mei</option>
-                        <option value="6">Juni</option>
-                        <option value="7">Juli</option>
-                        <option value="8">Agustus</option>
-                        <option value="9">September</option>
-                        <option value="10">Oktober</option>
-                        <option value="11">November</option>
-                        <option value="12">Desember</option>
+                        <option value="1">1 (Januari)</option>
+                        <option value="2">2 (Februari)</option>
+                        <option value="3">3 (Maret)</option>
+                        <option value="4">4 (April)</option>
+                        <option value="5">5 (Mei)</option>
+                        <option value="6">6 (Juni)</option>
+                        <option value="7">7 (Juli)</option>
+                        <option value="8">8 (Agustus)</option>
+                        <option value="9">9 (September)</option>
+                        <option value="10">10 (Oktober)</option>
+                        <option value="11">11 (November)</option>
+                        <option value="12">12 (Desember)</option>
                     </select>
                 </label>
                 <label class="expired-field expired-year-field">
@@ -225,35 +287,142 @@
     </section>
 </div>
 
-<!-- PEMINDAI BARCODE KAMERA (jika didukung browser) -->
+<!-- FORM EKSEKUSI PRODUK EXPIRED -->
 
-<div aria-hidden="true" class="expired-camera-backdrop" hidden="" id="expiredCameraModal">
+<div
+    aria-hidden="true"
+    class="expired-modal-backdrop"
+    hidden
+    id="expiredExecutionModal">
     <section
-        aria-labelledby="expiredCameraTitle"
+        aria-labelledby="expiredExecutionTitle"
         aria-modal="true"
-        class="expired-camera-card"
+        class="expired-modal expired-execution-modal"
         role="dialog">
-        <header class="expired-camera-header">
+        <header class="expired-modal-header">
             <div>
-                <h3 id="expiredCameraTitle">Scan Barcode</h3>
-                <p>Arahkan barcode ke kamera belakang perangkat.</p>
+                <h3 id="expiredExecutionTitle">Eksekusi Barang</h3>
             </div>
             <button
-                aria-label="Tutup pemindai"
+                aria-label="Tutup form eksekusi"
                 class="expired-modal-close"
-                id="closeExpiredCamera"
+                id="closeExpiredExecution"
                 type="button">
                 ×
             </button>
         </header>
-        <div class="expired-camera-video-wrap">
-            <video autoplay="" id="expiredCameraVideo" muted="" playsinline=""></video>
-            <span aria-hidden="true" class="expired-camera-guide"></span>
+        <div class="expired-modal-body expired-execution-body">
+            <div class="expired-product-searchline">
+                <div class="expired-autocomplete-wrap tools-search">
+                    <input
+                        aria-label="Cari produk expired berdasarkan barcode atau nama"
+                        autocomplete="off"
+                        id="expiredExecutionSearch"
+                        placeholder="Search...."
+                        type="search">
+                    <button
+                        aria-label="Hapus pencarian"
+                        class="expired-search-clear"
+                        hidden
+                        type="button">
+                        <svg
+                            aria-hidden="true"
+                            viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18"></path>
+                        </svg>
+                    </button>
+                    <div
+                        aria-live="polite"
+                        class="expired-autocomplete"
+                        hidden
+                        id="expiredExecutionAutocomplete"></div>
+                </div>
+                <button
+                    aria-label="Scan barcode produk expired"
+                    class="expired-scan-button"
+                    id="scanExpiredExecutionBarcode"
+                    type="button">
+                    <svg
+                        aria-hidden="true"
+                        class="expired-scan-icon"
+                        viewBox="0 0 24 24">
+                        <path d="M4 8V5a1 1 0 0 1 1-1h3"></path>
+                        <path d="M16 4h3a1 1 0 0 1 1 1v3"></path>
+                        <path d="M20 16v3a1 1 0 0 1-1 1h-3"></path>
+                        <path d="M8 20H5a1 1 0 0 1-1-1v-3"></path>
+                    </svg>
+                    <span class="expired-scan-label">Scan</span>
+                </button>
+            </div>
+            <div
+                aria-live="polite"
+                class="expired-lookup-result"
+                hidden
+                id="expiredExecutionLookupResult">
+                <div class="expired-lookup-result-top">
+                    <strong id="expiredExecutionResultBarcode"></strong>
+                    <span id="expiredExecutionResultRack"></span>
+                </div>
+                <div
+                    class="expired-lookup-result-name"
+                    id="expiredExecutionResultName"></div>
+            </div>
+            <div class="expired-execution-add-row">
+                <button
+                    class="expired-add-draft-button"
+                    id="addExpiredExecutionDraft"
+                    type="button">
+                    Oke
+                </button>
+            </div>
+            <section class="expired-execution-draft-section">
+                <div class="expired-draft-heading">
+                    <h4>Daftar input</h4>
+                </div>
+                <div
+                    aria-live="polite"
+                    class="expired-execution-draft-list"
+                    id="expiredExecutionDraftList">
+                    <p class="expired-execution-empty">
+                        Belum ada produk di daftar input.
+                    </p>
+                </div>
+            </section>
         </div>
-        <p class="expired-camera-status" id="expiredCameraStatus">Menyiapkan kamera...</p>
-        <div class="expired-camera-footer">
-            <button class="expired-cancel-button" id="stopExpiredCamera" type="button">
-                Tutup Kamera
+        <footer class="expired-modal-footer">
+            <button
+                class="expired-cancel-button"
+                id="cancelExpiredExecution"
+                type="button">
+                Batal
+            </button>
+            <button
+                class="expired-execution-submit"
+                id="confirmExpiredExecution"
+                type="button">
+                Eksekusi
+            </button>
+        </footer>
+    </section>
+</div>
+
+<!-- PEMINDAI BARCODE KAMERA -->
+
+<div aria-hidden="true" class="expired-camera-backdrop" hidden="" id="expiredCameraModal">
+    <section
+        aria-label="Pemindai barcode"
+        aria-modal="true"
+        class="expired-camera-card"
+        role="dialog">
+        <div class="expired-camera-video-wrap">
+            <div id="expiredCameraReader"></div>
+            <button
+                aria-label="Aktifkan atau nonaktifkan senter"
+                class="expired-camera-torch"
+                id="expiredCameraTorch"
+                title="Senter"
+                type="button">
+                ⚡
             </button>
         </div>
     </section>
