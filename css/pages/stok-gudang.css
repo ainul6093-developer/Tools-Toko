@@ -29,21 +29,14 @@
 #page-stok-gudang .stock-search-wrap {
     display: flex;
     align-items: center;
-    gap: 9px;
     flex: 1 1 360px;
     min-width: 0;
     max-width: var(--stock-search-max-width, 600px);
-    padding: 0 13px;
+    padding: 0 13px 0 40px;
     height: 44px;
     border: 1px solid #dce3ec;
     border-radius: 10px;
     background: #f9fbfd;
-}
-
-#page-stok-gudang .stock-search-icon {
-    color: #718096;
-    font-size: 25px;
-    line-height: 1;
 }
 
 #page-stok-gudang .stock-search-wrap input {
