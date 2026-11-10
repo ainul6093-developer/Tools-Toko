@@ -799,11 +799,29 @@
         return Array.from(groups.values())
             .map(group => ({
                 ...group,
-                records: group.records.sort(compareExpiryRecords)
+                records: group.records.sort(compareExpiryRecords),
+                latestActivity: group.records.reduce((latest, record) => {
+                    const timestamp = Date.parse(
+                        record.updatedAt || record.createdAt || ""
+                    );
+
+                    if (Number.isFinite(timestamp)) {
+                        return Math.max(latest, timestamp);
+                    }
+
+                    // Data lama tanpa timestamp tetap mengikuti urutan input IndexedDB.
+                    return Math.max(latest, Number(record.id || 0));
+                }, 0)
             }))
-            .sort((first, second) =>
-                compareExpiryRecords(first.records[0], second.records[0])
-            );
+            .sort((first, second) => {
+                if (first.latestActivity !== second.latestActivity) {
+                    return second.latestActivity - first.latestActivity;
+                }
+
+                // Jika waktunya sama, data dengan ID terbaru ditampilkan lebih dulu.
+                return Number(second.records[0]?.id || 0) -
+                    Number(first.records[0]?.id || 0);
+            });
     }
 
     function createStatusBadge(record, currentDate) {
