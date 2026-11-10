@@ -17,6 +17,7 @@
         "Juli", "Agustus", "September", "Oktober", "November", "Desember"
     ];
     const MAX_SUGGESTIONS = 8;
+    const LAST_EXPIRY_YEAR_KEY = "toolsToko.expired.lastUsedYear";
 
     const state = {
         db: null,
@@ -25,23 +26,63 @@
         codeIndex: new Map(),
         firstCharIndex: new Map(),
         stockIndex: new Map(),
+        executionProducts: [],
+        executionCodeIndex: new Map(),
+        executionFirstCharIndex: new Map(),
+        executionSelectedProduct: null,
+        executionDrafts: [],
+        scanTarget: "add",
         lookupLoaded: false,
         lookupLoading: null,
         selectedProduct: null,
         selectedRack: "",
         editingRecord: null,
         drafts: [],
+        activeDetailKey: null,
         scanMode: false,
-        cameraStream: null,
-        cameraDetector: null,
+        html5QrCode: null,
         cameraActive: false,
-        cameraFrame: 0
+        cameraTorch: false,
+        lastUsedYear: new Date().getFullYear()
     };
 
     const el = id => document.getElementById(id);
 
-    function renderScanButton(label = "Scan") {
-        const button = el("scanExpiredBarcode");
+    function updateSearchClearButton(input) {
+        if (!input) return;
+
+        const clearButton = input.parentElement?.querySelector(
+            ".expired-search-clear"
+        );
+        if (clearButton) {
+            clearButton.hidden = !input.value.trim();
+        }
+    }
+
+    function setupSearchClearButton(inputId) {
+        const input = el(inputId);
+        const clearButton = input?.parentElement?.querySelector(
+            ".expired-search-clear"
+        );
+        if (!input || !clearButton) return;
+
+        input.addEventListener("input", () => {
+            updateSearchClearButton(input);
+        });
+        clearButton.addEventListener("click", () => {
+            input.value = "";
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+        });
+        updateSearchClearButton(input);
+    }
+
+    function renderScanButton(label = "Scan", target = "add") {
+        const button = el(
+            target === "execution"
+                ? "scanExpiredExecutionBarcode"
+                : "scanExpiredBarcode"
+        );
         if (!button) return;
         button.innerHTML =
             '<svg class="expired-scan-icon" viewBox="0 0 24 24" ' +
@@ -54,7 +95,10 @@
             '"/>' +
             '</svg>' +
             `<span class="expired-scan-label">${label}</span>`;
-        button.setAttribute("aria-label", label === "Scan" ? "Scan barcode" : label);
+        button.setAttribute(
+            "aria-label",
+            label === "Scan" ? "Scan barcode" : label
+        );
     }
 
     function normalizeCode(value) {
@@ -63,6 +107,37 @@
 
     function normalizeText(value) {
         return String(value ?? "").toLocaleLowerCase("id-ID").trim();
+    }
+
+    function getLastUsedYear() {
+        try {
+            const storedYear = Number(
+                window.localStorage.getItem(LAST_EXPIRY_YEAR_KEY)
+            );
+            if (
+                Number.isInteger(storedYear) &&
+                storedYear >= 2000 &&
+                storedYear <= 2100
+            ) {
+                state.lastUsedYear = storedYear;
+            }
+        } catch (_) {
+            // Gunakan nilai sesi bila penyimpanan lokal tidak tersedia.
+        }
+
+        return state.lastUsedYear;
+    }
+
+    function rememberExpiryYear(value) {
+        const year = Number(value);
+        if (!Number.isInteger(year) || year < 2000 || year > 2100) return;
+
+        state.lastUsedYear = year;
+        try {
+            window.localStorage.setItem(LAST_EXPIRY_YEAR_KEY, String(year));
+        } catch (_) {
+            // Nilai tetap dipertahankan selama halaman aktif.
+        }
     }
 
     function openDatabase(name, version, setup) {
@@ -331,7 +406,8 @@
         }
 
         el("expiredProductSearch").value = `${code} : ${name}`;
-        el("expiredProductSearch").placeholder = "Ketik nama barang...";
+        updateSearchClearButton(el("expiredProductSearch"));
+        el("expiredProductSearch").placeholder = "Search....";
         el("expiredAutocomplete").hidden = true;
 
         if (rack) {
@@ -356,15 +432,101 @@
         const resultCard = el("expiredLookupResult");
         if (resultCard) resultCard.hidden = true;
         el("expiredProductSearch").value = "";
-        el("expiredProductSearch").placeholder = "Ketik nama barang...";
+        updateSearchClearButton(el("expiredProductSearch"));
+        el("expiredProductSearch").placeholder = "Search....";
         el("expiredMonth").value = "";
+        el("expiredDay").value = "";
         el("expiredAutocomplete").hidden = true;
+    }
+
+    function setDateEntryMode(enabled) {
+        const toggle = el("expiredDateToggle");
+        const dayField = el("expiredDayField");
+        const dateRow = el("expiredDateRow");
+        if (!toggle || !dayField || !dateRow) return;
+
+        toggle.checked = Boolean(enabled);
+        dayField.hidden = !toggle.checked;
+        dateRow.classList.toggle("has-day", toggle.checked);
+
+        if (!toggle.checked) {
+            el("expiredDay").value = "";
+        }
+    }
+
+    function readOptionalExpiryDay(month, year) {
+        if (!el("expiredDateToggle").checked) {
+            return { day: null, error: "" };
+        }
+
+        const rawDay = el("expiredDay").value.trim();
+        if (!rawDay) {
+            return {
+                day: null,
+                error: "Isi tanggal expired terlebih dahulu."
+            };
+        }
+
+        const day = Number(rawDay);
+        const maxDay = new Date(year, month, 0).getDate();
+        if (!Number.isInteger(day) || day < 1 || day > maxDay) {
+            return {
+                day: null,
+                error: `Tanggal untuk bulan ini harus antara 1 sampai ${maxDay}.`
+            };
+        }
+
+        return { day, error: "" };
+    }
+
+    function prepareAdditionalExpiry(draft) {
+        state.editingRecord = null;
+        el("expiredModal").classList.remove("is-editing");
+
+        selectProduct(
+            {
+                kode: draft.barcode,
+                nama: draft.nama
+            },
+            draft.rak || ""
+        );
+
+        el("expiredMonth").value = "";
+        el("expiredYear").value = String(getLastUsedYear());
+        el("expiredDay").value = "";
+        el("expiredExecution").value = draft.eksekusi || "- 1 Bulan";
+
+        setLookupMessage(
+            "Produk dipilih ulang. Masukkan tanggal expired berikutnya."
+        );
+        el("expiredMonth").focus();
     }
 
     function formatMonthYear(month, year) {
         const monthIndex = Number(month) - 1;
         if (monthIndex < 0 || monthIndex > 11 || !year) return "—";
         return `${MONTHS[monthIndex]} ${year}`;
+    }
+
+    function formatExpiryDate(record) {
+        const month = Number(record.bulan);
+        const year = Number(record.tahun);
+        const monthYear = formatMonthYear(month, year);
+        const rawDay = record.tanggal;
+
+        if (
+            rawDay === null || rawDay === undefined || rawDay === "" ||
+            !Number.isInteger(Number(rawDay))
+        ) {
+            return monthYear;
+        }
+
+        const day = Number(rawDay);
+        if (day < 1 || day > new Date(year, month, 0).getDate()) {
+            return monthYear;
+        }
+
+        return `${String(day).padStart(2, "0")} ${MONTHS[month - 1]} ${year}`;
     }
 
     function getMonthsUntilExpiry(record, now = new Date()) {
@@ -385,36 +547,130 @@
     }
 
 
-function getKeterangan(record, now = new Date()) {
-    const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
+    function formatMonthDuration(months) {
+        const years = Math.floor(months / 12);
+        const remainingMonths = months % 12;
 
-    if (monthsUntilExpiry === null) {
-        return "—";
+        if (years === 0) {
+            return `${months} Bulan`;
+        }
+
+        if (remainingMonths === 0) {
+            return `${years} Tahun`;
+        }
+
+        return `${years} th ${remainingMonths} bulan`;
     }
 
-    if (monthsUntilExpiry > 0) {
-        return `- ${monthsUntilExpiry} Bulan`;
-    }
+    function getKeterangan(record, now = new Date()) {
+        if (record.executionPending === true) {
+            return "Menunggu Update";
+        }
 
-    if (monthsUntilExpiry < 0) {
-        return `+ ${Math.abs(monthsUntilExpiry)} Bulan`;
-    }
+        const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
 
-    return "Bulan Ini";
-}
+        if (monthsUntilExpiry === null) {
+            return "—";
+        }
+
+        if (monthsUntilExpiry > 0) {
+            return `- ${formatMonthDuration(monthsUntilExpiry)}`;
+        }
+
+        if (monthsUntilExpiry < 0) {
+            return `+ ${formatMonthDuration(Math.abs(monthsUntilExpiry))}`;
+        }
+
+        return "Bulan Ini";
+    }
 
   
 
-function getExecutionLeadMonths(record) {
-    const execution = String(record.eksekusi || "- 1 Bulan");
-    const match = execution.match(/(?:H\s*)?-\s*(\d+)\s*bulan/i);
-    const months = match ? Number(match[1]) : 1;
+    function getExecutionLeadMonths(record) {
+        const execution = String(record.eksekusi || "- 1 Bulan");
+        const match = execution.match(/(?:H\s*)?-\s*(\d+)\s*bulan/i);
+        const months = match ? Number(match[1]) : 1;
 
-    return Number.isInteger(months) && months > 0 ? months : 1;
-}
+        return Number.isInteger(months) && months > 0 ? months : 1;
+    }
 
-  
+    function getExactExpiryDate(record) {
+        const month = Number(record.bulan);
+        const year = Number(record.tahun);
+        const rawDay = record.tanggal;
+
+        if (
+            rawDay === null || rawDay === undefined || rawDay === "" ||
+            !Number.isInteger(month) || month < 1 || month > 12 ||
+            !Number.isInteger(year) || year < 2000 || year > 2100
+        ) {
+            return null;
+        }
+
+        const day = Number(rawDay);
+        const lastDay = new Date(year, month, 0).getDate();
+        if (!Number.isInteger(day) || day < 1 || day > lastDay) {
+            return null;
+        }
+
+        return new Date(year, month - 1, day);
+    }
+
+    function subtractCalendarMonths(date, months) {
+        const totalMonths =
+            date.getFullYear() * 12 + date.getMonth() - months;
+        const targetYear = Math.floor(totalMonths / 12);
+        const targetMonth = totalMonths - targetYear * 12;
+        const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+        const targetDay = Math.min(date.getDate(), lastDay);
+
+        return new Date(targetYear, targetMonth, targetDay);
+    }
+
     function getStatus(record, now = new Date()) {
+        if (record.executionPending === true) {
+            return {
+                label: "Sudah Eksekusi",
+                className: "expired-status-executed"
+            };
+        }
+
+        const exactExpiryDate = getExactExpiryDate(record);
+
+        if (exactExpiryDate) {
+            const today = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate()
+            );
+
+            // Tanggal lengkap memakai batas eksekusi berdasarkan hari kalender.
+            if (today >= exactExpiryDate) {
+                return {
+                    label: "Harus Eksekusi /\nUpdate Sekarang",
+                    className: "expired-status-urgent"
+                };
+            }
+
+            const executionDate = subtractCalendarMonths(
+                exactExpiryDate,
+                getExecutionLeadMonths(record)
+            );
+
+            if (today >= executionDate) {
+                return {
+                    label: "Perlu Eksekusi / Update",
+                    className: "expired-status-warning"
+                };
+            }
+
+            return {
+                label: "Aman",
+                className: "expired-status-safe"
+            };
+        }
+
+        // Data tanpa tanggal lengkap tetap memakai perhitungan bulan/tahun lama.
         const monthsUntilExpiry = getMonthsUntilExpiry(record, now);
 
         if (monthsUntilExpiry === null) {
@@ -450,13 +706,22 @@ function getExecutionLeadMonths(record) {
         const barcode = normalizeCode(record.barcode);
         const month = Number(record.bulan);
         const year = Number(record.tahun);
+        const rawDay = record.tanggal;
+        const day = rawDay === null || rawDay === undefined || rawDay === ""
+            ? 0
+            : Number(rawDay);
+
         if (
             !barcode || !Number.isInteger(month) || month < 1 || month > 12 ||
-            !Number.isInteger(year) || year < 2000 || year > 2100
+            !Number.isInteger(year) || year < 2000 || year > 2100 ||
+            !Number.isInteger(day) || day < 0 || day > new Date(year, month, 0).getDate()
         ) {
             return null;
         }
-        return `${barcode}|${year}-${String(month).padStart(2, "0")}`;
+
+        return `${barcode}|${year}-${String(month).padStart(2, "0")}-${
+            String(day).padStart(2, "0")
+        }`;
     }
 
     async function deleteRecordIds(db, ids) {
@@ -501,112 +766,679 @@ function getExecutionLeadMonths(record) {
         return uniqueRecords;
     }
 
+    function compareExpiryRecords(first, second) {
+        const firstValue =
+            Number(first.tahun) * 10000 +
+            Number(first.bulan) * 100 +
+            (Number(first.tanggal) || 0);
+        const secondValue =
+            Number(second.tahun) * 10000 +
+            Number(second.bulan) * 100 +
+            (Number(second.tanggal) || 0);
+
+        if (firstValue !== secondValue) return firstValue - secondValue;
+        return Number(first.id || 0) - Number(second.id || 0);
+    }
+
+    function groupRecordsByProduct(records) {
+        const groups = new Map();
+
+        records.forEach((record, index) => {
+            const barcode = normalizeCode(record.barcode);
+            const key = barcode || `record-${record.id ?? index}`;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    barcode,
+                    records: []
+                });
+            }
+            groups.get(key).records.push(record);
+        });
+
+        return Array.from(groups.values())
+            .map(group => ({
+                ...group,
+                records: group.records.sort(compareExpiryRecords)
+            }))
+            .sort((first, second) =>
+                compareExpiryRecords(first.records[0], second.records[0])
+            );
+    }
+
+    function createStatusBadge(record, currentDate) {
+        const badge = document.createElement("span");
+        const status = getStatus(record, currentDate);
+        badge.className = `expired-status-badge ${status.className}`;
+        badge.textContent = status.label;
+        return badge;
+    }
+
+    function createKeteranganCell(record, currentDate) {
+        const cell = document.createElement("td");
+
+        if (record.executionPending === true) {
+            const badge = document.createElement("span");
+            badge.className = "expired-status-badge expired-status-executed";
+            badge.textContent = "Menunggu Update";
+            cell.appendChild(badge);
+        } else {
+            cell.textContent = getKeterangan(record, currentDate);
+        }
+
+        return cell;
+    }
+
+    function closeDetailView() {
+        state.activeDetailKey = null;
+        renderRecords();
+    }
+
+    function createDetailView(group, currentDate) {
+        const view = el("expiredDetailView");
+        if (!view) return;
+
+        view.innerHTML = "";
+        const record = group.records[0];
+
+        const modal = document.createElement("section");
+        modal.className = "expired-detail-modal";
+        modal.setAttribute("aria-labelledby", "expiredDetailTitle");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("role", "dialog");
+
+        const header = document.createElement("header");
+        header.className = "expired-modal-header";
+
+        const heading = document.createElement("div");
+
+        const title = document.createElement("h3");
+        title.id = "expiredDetailTitle";
+        title.textContent = "Rincian Data Expired";
+
+        const subtitle = document.createElement("p");
+        subtitle.textContent =
+            `${group.records.length.toLocaleString("id-ID")} tanggal expired untuk barang ini`;
+        heading.append(title, subtitle);
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "expired-modal-close";
+        closeButton.textContent = "×";
+        closeButton.setAttribute("aria-label", "Tutup rincian data expired");
+        closeButton.title = "Tutup rincian";
+        closeButton.addEventListener("click", closeDetailView);
+
+        header.append(heading, closeButton);
+        modal.appendChild(header);
+
+        const modalBody = document.createElement("div");
+        modalBody.className = "expired-modal-body expired-detail-modal-body";
+
+        const productCard = document.createElement("section");
+        productCard.className = "expired-detail-product-card";
+        [
+            ["Nama Barang", record.nama || "-"],
+            ["Barcode", record.barcode || "-"],
+            ["Rak", record.rak || "-"]
+        ].forEach(([label, value]) => {
+            const item = document.createElement("div");
+            item.className = "expired-detail-product-item";
+            const caption = document.createElement("span");
+            caption.textContent = label;
+            const content = document.createElement("strong");
+            content.textContent = value;
+            item.append(caption, content);
+            productCard.appendChild(item);
+        });
+        modalBody.appendChild(productCard);
+
+        const section = document.createElement("section");
+        section.className = "expired-detail-record-section";
+        const sectionTitle = document.createElement("h4");
+        sectionTitle.textContent = "Daftar Tanggal Expired";
+        section.appendChild(sectionTitle);
+
+        const tableWrapper = document.createElement("div");
+        tableWrapper.className = "expired-detail-table-wrapper";
+        const table = document.createElement("table");
+        table.className = "expired-detail-table";
+
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        ["Tanggal Expired", "Keterangan", "Status", "Action"].forEach(label => {
+            const th = document.createElement("th");
+            th.textContent = label;
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        group.records.forEach(item => {
+            const row = document.createElement("tr");
+
+            const dateCell = document.createElement("td");
+            dateCell.className = "expired-detail-date-cell";
+            dateCell.textContent = formatExpiryDate(item);
+            row.appendChild(dateCell);
+
+            row.appendChild(createKeteranganCell(item, currentDate));
+
+            const statusCell = document.createElement("td");
+            statusCell.className = "expired-status-cell";
+            statusCell.appendChild(createStatusBadge(item, currentDate));
+            bindStatusDeleteGesture(statusCell, item);
+            row.appendChild(statusCell);
+
+            const actionCell = document.createElement("td");
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "expired-edit-button";
+            editButton.textContent = item.executionPending === true
+                ? "Update"
+                : "Edit";
+
+            if (item.executionPending === true) {
+                editButton.classList.add("expired-edit-button-execution");
+            }
+
+            editButton.addEventListener("click", () => openEditModal(item));
+            actionCell.appendChild(editButton);
+            row.appendChild(actionCell);
+
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+        tableWrapper.appendChild(table);
+        section.appendChild(tableWrapper);
+        modalBody.appendChild(section);
+
+        modal.appendChild(modalBody);
+        view.appendChild(modal);
+    }
+
     function renderRecords() {
         const body = el("expiredTableBody");
-        if (!body) return;
+        const listView = el("expiredListView");
+        const detailView = el("expiredDetailView");
+        if (!body || !listView || !detailView) return;
+
         const query = normalizeText(el("expiredSearch")?.value || "");
         const currentDate = new Date();
-        const filtered = state.records.filter(record => {
+        const groups = groupRecordsByProduct(state.records);
+        const activeGroup = groups.find(group => group.key === state.activeDetailKey);
+
+        if (activeGroup) {
+            listView.hidden = false;
+            detailView.hidden = false;
+            detailView.setAttribute("aria-hidden", "false");
+            createDetailView(activeGroup, currentDate);
+            return;
+        }
+
+        state.activeDetailKey = null;
+        listView.hidden = false;
+        detailView.hidden = true;
+        detailView.setAttribute("aria-hidden", "true");
+
+        const filteredGroups = groups.filter(group => {
             if (!query) return true;
-            const status = getStatus(record, currentDate).label;
-            return [
-                record.barcode,
-                record.nama,
-                record.rak,
-                formatMonthYear(record.bulan, record.tahun),
-                getKeterangan(record, currentDate),
-                record.eksekusi || "H - 1 Bulan",
-                status
-            ]
-                .some(value => normalizeText(value).includes(query));
+
+            return group.records.some(record => {
+                const status = getStatus(record, currentDate).label;
+                return [
+                    record.barcode,
+                    record.nama,
+                    record.rak,
+                    formatExpiryDate(record),
+                    getKeterangan(record, currentDate),
+                    record.eksekusi || "- 1 Bulan",
+                    status
+                ].some(value => normalizeText(value).includes(query));
+            });
         });
 
         body.innerHTML = "";
-        if (!filtered.length) {
+        if (!filteredGroups.length) {
             const row = document.createElement("tr");
             const cell = document.createElement("td");
             cell.colSpan = 7;
             cell.className = "expired-empty-cell";
             cell.textContent = state.records.length
-                    ? "Data tidak ditemukan."
-                    : "Belum ada data expired.";
+                ? "Data tidak ditemukan."
+                : "Belum ada data expired.";
             row.appendChild(cell);
             body.appendChild(row);
         } else {
-            filtered.forEach(record => {
+            filteredGroups.forEach(group => {
+                const mainRecord = group.records[0];
                 const row = document.createElement("tr");
-                addCell(row, record.barcode);
-                addCell(row, record.nama);
-                addCell(row, record.rak, true);
-                addCell(row, formatMonthYear(record.bulan, record.tahun));
-                // Keterangan dihitung dari bulan expired dibanding bulan perangkat.
-                addCell(row, getKeterangan(record, currentDate));
+
+                addCell(row, mainRecord.barcode);
+                addCell(row, mainRecord.nama);
+                addCell(row, mainRecord.rak, true);
+
+                const dateCell = document.createElement("td");
+                const dateText = document.createElement("span");
+                dateText.textContent = formatExpiryDate(mainRecord);
+                dateCell.appendChild(dateText);
+
+                if (group.records.length > 1) {
+                    const moreButton = document.createElement("button");
+                    moreButton.type = "button";
+                    moreButton.className = "expired-more-link";
+                    moreButton.textContent = " ... selengkapnya";
+                    moreButton.addEventListener("click", () => {
+                        state.activeDetailKey = group.key;
+                        renderRecords();
+                    });
+                    dateCell.appendChild(moreButton);
+                }
+                row.appendChild(dateCell);
+
+                row.appendChild(createKeteranganCell(mainRecord, currentDate));
 
                 const statusCell = document.createElement("td");
-                const badge = document.createElement("span");
-                const status = getStatus(record, currentDate);
-                badge.className = `expired-status-badge ${status.className}`;
-                badge.textContent = status.label;
                 statusCell.className = "expired-status-cell";
-                statusCell.appendChild(badge);
-                bindStatusDeleteGesture(statusCell, record);
+                statusCell.appendChild(createStatusBadge(mainRecord, currentDate));
+                bindStatusDeleteGesture(statusCell, mainRecord, group.records);
                 row.appendChild(statusCell);
 
                 const actionCell = document.createElement("td");
                 const editButton = document.createElement("button");
                 editButton.type = "button";
                 editButton.className = "expired-edit-button";
-                editButton.textContent = "Edit";
+                const actionLabel = mainRecord.executionPending === true
+                    ? "Update"
+                    : "Edit";
+
+                if (mainRecord.executionPending === true) {
+                    editButton.classList.add("expired-edit-button-execution");
+                }
+                editButton.textContent = actionLabel;
                 editButton.setAttribute(
                     "aria-label",
-                    `Edit data expired ${record.nama || record.barcode}`
+                    `${actionLabel} tanggal expired ${mainRecord.nama || mainRecord.barcode}`
                 );
-                editButton.addEventListener("click", () => openEditModal(record));
+                editButton.addEventListener("click", () => openEditModal(mainRecord));
                 actionCell.appendChild(editButton);
                 row.appendChild(actionCell);
 
                 body.appendChild(row);
+
             });
         }
+
         const count = el("expiredRecordCount");
-        if (count) count.textContent = `${filtered.length.toLocaleString("id-ID")} data`;
+        if (count) {
+            count.textContent = `${filteredGroups.length.toLocaleString("id-ID")} data`;
+        }
     }
 
+    function addCell(row, value, blankWhenEmpty = false) {
+        const cell = document.createElement("td");
+        const text = String(value ?? "").trim();
 
-function addCell(row, value, blankWhenEmpty = false) {
-    const cell = document.createElement("td");
-    const text = String(value ?? "").trim();
+        if (blankWhenEmpty) {
+            const placeholderValues = [
+                "",
+                "—",
+                "-",
+                "rak tidak ditemukan"
+            ];
+            const normalizedText = text.toLocaleLowerCase("id-ID");
+            cell.textContent = placeholderValues.includes(normalizedText)
+                ? ""
+                : text;
+        } else {
+            cell.textContent = text || "—";
+        }
 
-    if (blankWhenEmpty) {
-        const placeholderValues = [
-            "",
-            "—",
-            "-",
-            "rak tidak ditemukan"
-        ];
-
-        const normalizedText = text.toLocaleLowerCase("id-ID");
-
-        cell.textContent = placeholderValues.includes(normalizedText)
-            ? ""
-            : text;
-    } else {
-        cell.textContent = text || "—";
+        row.appendChild(cell);
     }
 
-    row.appendChild(cell);
-}
-
-  
     async function loadRecords() {
         if (!state.db) state.db = await openExpiredDatabase();
         const records = await readAll(state.db, EXPIRED_STORE);
         state.records = await keepLatestRecords(state.db, records);
+        buildExecutionProductIndexes();
         renderRecords();
+    }
+
+    function buildExecutionProductIndexes() {
+        const groups = groupRecordsByProduct(state.records);
+        state.executionProducts = groups.map(group => {
+            const firstRecord = group.records[0];
+            return {
+                kode: normalizeCode(firstRecord.barcode || group.barcode),
+                nama: String(firstRecord.nama || ""),
+                rak: String(firstRecord.rak || "")
+            };
+        });
+
+        state.executionCodeIndex = new Map();
+        state.executionFirstCharIndex = new Map();
+
+        state.executionProducts.forEach(product => {
+            const code = normalizeCode(product.kode);
+            if (!code) return;
+
+            state.executionCodeIndex.set(normalizeText(code), product);
+            const keys = new Set([code[0].toLocaleLowerCase("id-ID")]);
+            normalizeText(product.nama)
+                .split(/[^\p{L}\p{N}]+/u)
+                .filter(Boolean)
+                .forEach(token => keys.add(token[0]));
+
+            keys.forEach(key => {
+                if (!state.executionFirstCharIndex.has(key)) {
+                    state.executionFirstCharIndex.set(key, []);
+                }
+                state.executionFirstCharIndex.get(key).push(product);
+            });
+        });
+    }
+
+    function findExecutionProducts(query) {
+        const q = normalizeText(query);
+        if (!q) return [];
+
+        const exact = state.executionCodeIndex.get(
+            normalizeText(normalizeCode(query))
+        );
+        if (exact) return [exact];
+
+        const bucket = state.executionFirstCharIndex.get(q[0]) || [];
+        const matches = [];
+
+        for (const product of bucket) {
+            const code = normalizeText(product.kode);
+            const name = normalizeText(product.nama);
+            const tokenMatch = name
+                .split(/[^\p{L}\p{N}]+/u)
+                .some(token => token.startsWith(q));
+
+            if (code.startsWith(q) || tokenMatch || name.startsWith(q)) {
+                matches.push(product);
+                if (matches.length >= MAX_SUGGESTIONS) break;
+            }
+        }
+
+        return matches;
+    }
+
+    function renderExecutionAutocomplete() {
+        const input = el("expiredExecutionSearch");
+        const list = el("expiredExecutionAutocomplete");
+        if (!input || !list) return;
+
+        const query = input.value.trim();
+        list.innerHTML = "";
+        if (!query) {
+            list.hidden = true;
+            return;
+        }
+
+        const products = findExecutionProducts(query);
+        if (!products.length) {
+            const empty = document.createElement("div");
+            empty.className = "expired-autocomplete-empty";
+            empty.textContent = "Produk tidak ditemukan.";
+            list.appendChild(empty);
+            list.hidden = false;
+            return;
+        }
+
+        products.forEach(product => {
+            const option = document.createElement("button");
+            option.type = "button";
+            option.className = "expired-autocomplete-option";
+
+            const barcode = document.createElement("strong");
+            barcode.textContent = product.kode;
+            const name = document.createElement("span");
+            name.textContent = product.nama || "Nama barang tidak tersedia";
+            option.append(barcode, document.createTextNode(" : "), name);
+            option.addEventListener("pointerdown", event => event.preventDefault());
+            option.addEventListener("click", () => selectExecutionProduct(product));
+            list.appendChild(option);
+        });
+
+        list.hidden = false;
+    }
+
+    function selectExecutionProduct(product) {
+        state.executionSelectedProduct = product;
+        el("expiredExecutionSearch").value = `${product.kode} : ${product.nama}`;
+        updateSearchClearButton(el("expiredExecutionSearch"));
+        el("expiredExecutionAutocomplete").hidden = true;
+
+        el("expiredExecutionResultBarcode").textContent = product.kode;
+        el("expiredExecutionResultRack").textContent = product.rak || "";
+        el("expiredExecutionResultName").textContent =
+            product.nama || "Nama barang tidak tersedia";
+        el("expiredExecutionLookupResult").hidden = false;
+
+        state.scanMode = false;
+        state.scanTarget = "execution";
+        el("scanExpiredExecutionBarcode").classList.remove("is-scanning");
+        renderScanButton("Scan", "execution");
+    }
+
+    function clearExecutionSelectedProduct(clearInput = true) {
+        state.executionSelectedProduct = null;
+        const input = el("expiredExecutionSearch");
+        if (input) {
+            if (clearInput) input.value = "";
+            updateSearchClearButton(input);
+            input.placeholder = "Search....";
+        }
+        if (el("expiredExecutionAutocomplete")) {
+            el("expiredExecutionAutocomplete").hidden = true;
+        }
+        if (el("expiredExecutionLookupResult")) {
+            el("expiredExecutionLookupResult").hidden = true;
+        }
+    }
+
+    function addExecutionDraft() {
+        const product = state.executionSelectedProduct;
+        if (!product) {
+            renderExecutionAutocomplete();
+            el("expiredExecutionSearch").focus();
+            return;
+        }
+
+        const barcode = normalizeCode(product.kode);
+        const duplicate = state.executionDrafts.some(
+            draft => normalizeCode(draft.kode) === barcode
+        );
+        if (duplicate) {
+            clearExecutionSelectedProduct();
+            el("expiredExecutionSearch").focus();
+            return;
+        }
+
+        state.executionDrafts.push({ ...product });
+        renderExecutionDrafts();
+        clearExecutionSelectedProduct();
+        el("expiredExecutionSearch").focus();
+    }
+
+    function renderExecutionDrafts() {
+        const list = el("expiredExecutionDraftList");
+        if (!list) return;
+        list.innerHTML = "";
+
+        if (!state.executionDrafts.length) {
+            const empty = document.createElement("p");
+            empty.className = "expired-execution-empty";
+            empty.textContent = "Belum ada produk di daftar input.";
+            list.appendChild(empty);
+            return;
+        }
+
+        state.executionDrafts.forEach((product, index) => {
+            const card = document.createElement("article");
+            card.className = "expired-execution-draft-card";
+
+            const top = document.createElement("div");
+            top.className = "expired-lookup-result-top";
+            const barcode = document.createElement("strong");
+            barcode.textContent = product.kode;
+            const rack = document.createElement("span");
+            rack.textContent = product.rak || "";
+
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "expired-execution-draft-remove";
+            remove.setAttribute(
+                "aria-label",
+                `Hapus ${product.nama || product.kode} dari daftar input`
+            );
+            remove.title = "Hapus dari daftar input";
+            remove.innerHTML =
+                '<svg viewBox="0 0 24 24" aria-hidden="true" ' +
+                'focusable="false">' +
+                '<path d="M3 6h18M8 6V4h8v2" />' +
+                '<path d="M19 6l-1 14H6L5 6" />' +
+                '<path d="M10 11v5M14 11v5" />' +
+                '</svg>';
+            remove.addEventListener("click", () => {
+                state.executionDrafts.splice(index, 1);
+                renderExecutionDrafts();
+            });
+
+            top.append(barcode, rack, remove);
+
+            const name = document.createElement("div");
+            name.className = "expired-lookup-result-name";
+            name.textContent = product.nama || "Nama barang tidak tersedia";
+
+            card.append(top, name);
+            list.appendChild(card);
+        });
+    }
+
+    function openExecutionModal() {
+        stopCameraScanner();
+        state.executionDrafts = [];
+        state.scanTarget = "execution";
+        state.scanMode = false;
+        clearExecutionSelectedProduct();
+        renderExecutionDrafts();
+
+        const modal = el("expiredExecutionModal");
+        modal.hidden = false;
+        modal.setAttribute("aria-hidden", "false");
+        el("expiredExecutionSearch").focus();
+    }
+
+    function closeExecutionModal() {
+        stopCameraScanner();
+        const modal = el("expiredExecutionModal");
+        if (modal) {
+            modal.hidden = true;
+            modal.setAttribute("aria-hidden", "true");
+        }
+        state.executionDrafts = [];
+        state.scanMode = false;
+        state.scanTarget = "add";
+        clearExecutionSelectedProduct();
+        renderExecutionDrafts();
+    }
+
+async function confirmExecution() {
+        if (!state.executionDrafts.length) {
+            showSuccess("Pilih minimal satu produk untuk dieksekusi.", true);
+            return;
+        }
+
+        const button = el("confirmExpiredExecution");
+        if (!button || button.disabled) return;
+
+        const selectedBarcodes = new Set(
+            state.executionDrafts
+                .map(product => normalizeCode(product.kode))
+                .filter(Boolean)
+        );
+        if (!selectedBarcodes.size) return;
+
+        button.disabled = true;
+        button.textContent = "Memproses...";
+
+        try {
+            if (!state.db) state.db = await openExpiredDatabase();
+
+            const markedAt = new Date().toISOString();
+            let matchedProducts = 0;
+
+            await new Promise((resolve, reject) => {
+                const tx = state.db.transaction(EXPIRED_STORE, "readwrite");
+                const store = tx.objectStore(EXPIRED_STORE);
+                const request = store.getAll();
+
+                request.onsuccess = () => {
+                    const matched = new Set();
+                    (request.result || []).forEach(record => {
+                        const barcode = normalizeCode(record.barcode);
+                        if (!selectedBarcodes.has(barcode)) return;
+
+                        store.put({
+                            ...record,
+                            executionPending: true,
+                            executionMarkedAt: markedAt
+                        });
+                        matched.add(barcode);
+                    });
+                    matchedProducts = matched.size;
+                };
+
+                request.onerror = () => tx.abort();
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(
+                    tx.error || new Error("Status eksekusi gagal disimpan.")
+                );
+                tx.onabort = () => reject(
+                    tx.error || new Error("Proses eksekusi dibatalkan.")
+                );
+            });
+
+            if (!matchedProducts) {
+                showSuccess(
+                    "Produk yang dipilih sudah tidak ditemukan di Data Expired. " +
+                    "Muat ulang daftar lalu coba lagi.",
+                    true
+                );
+                return;
+            }
+
+            await loadRecords();
+            closeExecutionModal();
+
+            const partialResult = matchedProducts < selectedBarcodes.size;
+            showSuccess(
+                partialResult
+                    ? `${matchedProducts} dari ${selectedBarcodes.size} produk berhasil dieksekusi.`
+                    : `Berhasil! ${matchedProducts.toLocaleString("id-ID")} produk sudah dieksekusi.`,
+                partialResult
+            );
+        } catch (error) {
+            showSuccess(
+                "Eksekusi gagal disimpan: " +
+                (error.message || "kesalahan database."),
+                true
+            );
+        } finally {
+            button.disabled = false;
+            button.textContent = "Eksekusi";
+        }
     }
 
     function openModal() {
         const modal = el("expiredModal");
+        state.scanTarget = "add";
         state.editingRecord = null;
         state.drafts = [];
         modal.classList.remove("is-editing");
@@ -618,10 +1450,11 @@ function addCell(row, value, blankWhenEmpty = false) {
         el("saveExpiredBatch").hidden = false;
 
         clearSelectedProduct();
-        const currentYear = new Date().getFullYear();
         el("expiredMonth").value = "";
-        el("expiredYear").value = String(currentYear);
+        el("expiredYear").value = String(getLastUsedYear());
         el("expiredExecution").value = "- 1 Bulan";
+        setDateEntryMode(false);
+
         const resultCard = el("expiredLookupResult");
         if (resultCard) resultCard.hidden = true;
         state.scanMode = false;
@@ -638,12 +1471,16 @@ function addCell(row, value, blankWhenEmpty = false) {
 
     function openEditModal(record) {
         stopCameraScanner();
+        state.scanTarget = "add";
         state.drafts = [];
         state.editingRecord = record;
 
         const modal = el("expiredModal");
         modal.classList.add("is-editing");
-        el("expiredModalTitle").textContent = "Edit Data Expired";
+        const isExecutionUpdate = record.executionPending === true;
+        el("expiredModalTitle").textContent = isExecutionUpdate
+            ? "Update Data Expired"
+            : "Edit Data Expired";
         el("expiredModalDescription").textContent =
             "Perbarui tanggal expired atau perintah eksekusi produk ini.";
         el("expiredOkBtn").textContent = "Simpan";
@@ -661,10 +1498,16 @@ function addCell(row, value, blankWhenEmpty = false) {
         el("expiredYear").value = String(record.tahun || new Date().getFullYear());
         el("expiredExecution").value =
             /- 2 Bulan/i.test(record.eksekusi || "")
-            ? "- 2 Bulan"
-            : "- 1 Bulan";
-        setLookupMessage("Data produk otomatis diambil dari baris yang dipilih.");
+                ? "- 2 Bulan"
+                : "- 1 Bulan";
+        setDateEntryMode(
+            record.tanggal !== null &&
+            record.tanggal !== undefined &&
+            record.tanggal !== ""
+        );
+        el("expiredDay").value = record.tanggal ? String(record.tanggal) : "";
 
+        setLookupMessage("Data produk otomatis diambil dari baris yang dipilih.");
         modal.hidden = false;
         modal.setAttribute("aria-hidden", "false");
         renderDrafts();
@@ -681,6 +1524,8 @@ function addCell(row, value, blankWhenEmpty = false) {
         state.selectedRack = "";
         state.editingRecord = null;
         state.scanMode = false;
+        state.scanTarget = "add";
+        setDateEntryMode(false);
         el("saveExpiredBatch").hidden = false;
         el("expiredOkBtn").textContent = "Oke";
         el("expiredOkBtn").disabled = false;
@@ -690,6 +1535,7 @@ function addCell(row, value, blankWhenEmpty = false) {
         const product = state.selectedProduct;
         const month = Number(el("expiredMonth").value);
         const year = Number(el("expiredYear").value);
+
         if (!product) {
             setLookupMessage(
                 "Pilih barang dari dropdown pencarian atau pindai barcode " +
@@ -709,22 +1555,40 @@ function addCell(row, value, blankWhenEmpty = false) {
             return;
         }
 
+        const dateEntry = readOptionalExpiryDay(month, year);
+        if (dateEntry.error) {
+            setLookupMessage(dateEntry.error, true);
+            el("expiredDay").focus();
+            return;
+        }
+
+        rememberExpiryYear(year);
+
         const barcode = normalizeCode(product.kode);
         const stock = state.stockIndex.get(barcode);
         const execution = el("expiredExecution").value || "- 1 Bulan";
-        const key = getRecordKey({ barcode, bulan: month, tahun: year });
-        const existingDraftIndex = state.drafts.findIndex(
+        const draftRecord = {
+            barcode,
+            bulan: month,
+            tahun: year,
+            tanggal: dateEntry.day
+        };
+        const key = getRecordKey(draftRecord);
+        const duplicateInDrafts = state.drafts.some(
             draft => getRecordKey(draft) === key
         );
-        const existsInSaved = state.records.some(
+        const duplicateInSaved = state.records.some(
             record => getRecordKey(record) === key
         );
 
-        // Jika kombinasi barcode + bulan + tahun yang sama dimasukkan lagi,
-        // input terbaru menggantikan draft lama atau data tersimpan saat disimpan.
-        if (existingDraftIndex !== -1) {
-            state.drafts.splice(existingDraftIndex, 1);
+        if (duplicateInDrafts || duplicateInSaved) {
+            setLookupMessage(
+                "Tanggal expired tersebut sudah terdaftar untuk produk ini. Data ganda tidak ditambahkan.",
+                true
+            );
+            return;
         }
+
         state.drafts.push({
             draftId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             barcode,
@@ -732,14 +1596,15 @@ function addCell(row, value, blankWhenEmpty = false) {
             rak: state.selectedRack || stock?.rak || "",
             bulan: month,
             tahun: year,
+            tanggal: dateEntry.day,
             eksekusi: execution
         });
+
         renderDrafts();
         clearSelectedProduct();
+        el("expiredDay").value = "";
         setLookupMessage(
-            existsInSaved || existingDraftIndex !== -1
-                ? "Input terbaru menggantikan data dengan barcode, bulan, dan tahun expired yang sama."
-                : `Data ditambahkan ke daftar sementara (${state.drafts.length}).`
+            `Tanggal expired ditambahkan ke daftar input (${state.drafts.length}).`
         );
         el("expiredProductSearch").focus();
     }
@@ -747,6 +1612,7 @@ function addCell(row, value, blankWhenEmpty = false) {
     function renderDrafts() {
         const body = el("expiredDraftTableBody");
         if (!body) return;
+
         body.innerHTML = "";
         if (!state.drafts.length) {
             const row = document.createElement("tr");
@@ -762,28 +1628,48 @@ function addCell(row, value, blankWhenEmpty = false) {
                 addCell(row, draft.barcode);
                 addCell(row, draft.nama);
                 addCell(row, draft.rak, true);
-                addCell(row, formatMonthYear(draft.bulan, draft.tahun));
-                const action = document.createElement("td");
-                const remove = document.createElement("button");
-                remove.type = "button";
-                remove.className = "expired-delete-button";
-                remove.textContent = "×";
-                remove.setAttribute(
+                addCell(row, formatExpiryDate(draft));
+
+                const actionCell = document.createElement("td");
+                const actions = document.createElement("div");
+                actions.className = "expired-draft-actions";
+
+                const addDateButton = document.createElement("button");
+                addDateButton.type = "button";
+                addDateButton.className = "expired-add-date-button";
+                addDateButton.textContent = "+";
+                addDateButton.setAttribute(
+                    "aria-label",
+                    `Tambah tanggal expired lain untuk ${draft.nama || draft.barcode}`
+                );
+                addDateButton.title = "Tambah tanggal expired lain untuk produk ini";
+                addDateButton.addEventListener("click", () => {
+                    prepareAdditionalExpiry(draft);
+                });
+
+                const removeButton = document.createElement("button");
+                removeButton.type = "button";
+                removeButton.className = "expired-delete-button";
+                removeButton.textContent = "×";
+                removeButton.setAttribute(
                     "aria-label",
                     `Hapus ${draft.nama || draft.barcode} dari daftar input`
                 );
-                remove.title = "Hapus dari daftar input";
-                remove.addEventListener("click", () => {
+                removeButton.title = "Hapus dari daftar input";
+                removeButton.addEventListener("click", () => {
                     state.drafts = state.drafts.filter(
                         item => item.draftId !== draft.draftId
                     );
                     renderDrafts();
                 });
-                action.appendChild(remove);
-                row.appendChild(action);
+
+                actions.append(addDateButton, removeButton);
+                actionCell.appendChild(actions);
+                row.appendChild(actionCell);
                 body.appendChild(row);
             });
         }
+
         const saveButton = el("saveExpiredBatch");
         if (saveButton) {
             saveButton.disabled = !state.drafts.length;
@@ -792,7 +1678,6 @@ function addCell(row, value, blankWhenEmpty = false) {
                 : "Simpan";
         }
     }
-
 
     async function saveEditedRecord() {
         const original = state.editingRecord;
@@ -811,14 +1696,30 @@ function addCell(row, value, blankWhenEmpty = false) {
             return;
         }
 
+        const dateEntry = readOptionalExpiryDay(month, year);
+        if (dateEntry.error) {
+            setLookupMessage(dateEntry.error, true);
+            el("expiredDay").focus();
+            return;
+        }
+
         const barcode = normalizeCode(state.selectedProduct.kode || original.barcode);
+        rememberExpiryYear(year);
+
+        const {
+            executionPending: wasExecutionPending,
+            ...originalRecord
+        } = original;
+        delete originalRecord.executionMarkedAt;
+
         const updatedRecord = {
-            ...original,
+            ...originalRecord,
             barcode,
             nama: String(state.selectedProduct.nama || original.nama || ""),
             rak: state.selectedRack || original.rak || "",
             bulan: month,
             tahun: year,
+            tanggal: dateEntry.day,
             tahunBulan: `${year}-${String(month).padStart(2, "0")}`,
             eksekusi: el("expiredExecution").value || "- 1 Bulan",
             updatedAt: new Date().toISOString()
@@ -830,6 +1731,7 @@ function addCell(row, value, blankWhenEmpty = false) {
         try {
             if (!state.db) state.db = await openExpiredDatabase();
 
+            let duplicateExists = false;
             await new Promise((resolve, reject) => {
                 const tx = state.db.transaction(EXPIRED_STORE, "readwrite");
                 const store = tx.objectStore(EXPIRED_STORE);
@@ -837,15 +1739,32 @@ function addCell(row, value, blankWhenEmpty = false) {
                 const updatedKey = getRecordKey(updatedRecord);
 
                 getAllRequest.onsuccess = () => {
-                    (getAllRequest.result || []).forEach(existing => {
-                        if (
-                            existing.id !== original.id &&
-                            getRecordKey(existing) === updatedKey
-                        ) {
-                            store.delete(existing.id);
+                    const existingRecords = getAllRequest.result || [];
+                    duplicateExists = existingRecords.some(existing =>
+                        existing.id !== original.id &&
+                        getRecordKey(existing) === updatedKey
+                    );
+
+                    if (!duplicateExists) {
+                        store.put(updatedRecord);
+
+                        if (wasExecutionPending === true) {
+                            existingRecords.forEach(existing => {
+                                if (
+                                    existing.id !== original.id &&
+                                    normalizeCode(existing.barcode) === barcode &&
+                                    existing.executionPending === true
+                                ) {
+                                    const {
+                                        executionPending,
+                                        executionMarkedAt,
+                                        ...clearedRecord
+                                    } = existing;
+                                    store.put(clearedRecord);
+                                }
+                            });
                         }
-                    });
-                    store.put(updatedRecord);
+                    }
                 };
 
                 getAllRequest.onerror = () => tx.abort();
@@ -857,6 +1776,16 @@ function addCell(row, value, blankWhenEmpty = false) {
                     tx.error || new Error("Perubahan data dibatalkan.")
                 );
             });
+
+            if (duplicateExists) {
+                setLookupMessage(
+                    "Tanggal expired tersebut sudah terdaftar untuk produk ini. Data lama tetap dipertahankan.",
+                    true
+                );
+                button.disabled = false;
+                button.textContent = "Simpan";
+                return;
+            }
 
             await loadRecords();
             closeModal();
@@ -872,7 +1801,6 @@ function addCell(row, value, blankWhenEmpty = false) {
         }
     }
 
-
     async function saveBatch() {
         if (!state.drafts.length) return;
 
@@ -886,116 +1814,113 @@ function addCell(row, value, blankWhenEmpty = false) {
             }
 
             const draftsToSave = [...state.drafts];
+            let savedCount = 0;
 
             await new Promise((resolve, reject) => {
-                const tx = state.db.transaction(
-                    EXPIRED_STORE,
-                    "readwrite"
-                );
-
+                const tx = state.db.transaction(EXPIRED_STORE, "readwrite");
                 const store = tx.objectStore(EXPIRED_STORE);
                 const getAllRequest = store.getAll();
 
                 getAllRequest.onsuccess = () => {
                     const existingRecords = getAllRequest.result || [];
-
+                    const existingKeys = new Set(
+                        existingRecords
+                            .map(getRecordKey)
+                            .filter(Boolean)
+                    );
                     const latestByKey = new Map();
 
-                    // Pastikan setiap kombinasi barcode dan tanggal
-                    // expired hanya disimpan satu kali dalam batch.
                     draftsToSave.forEach(draft => {
                         const key = getRecordKey(draft);
-
-                        if (key) {
+                        if (key && !latestByKey.has(key)) {
                             latestByKey.set(key, draft);
                         }
                     });
 
-                    // Hapus data lama yang memiliki barcode dan
-                    // tanggal expired sama dengan input terbaru.
-                    existingRecords.forEach(record => {
-                        const key = getRecordKey(record);
+                    latestByKey.forEach((draft, key) => {
+                        if (existingKeys.has(key)) return;
 
-                        if (key && latestByKey.has(key)) {
-                            store.delete(record.id);
-                        }
-                    });
-
-                    // Simpan input terbaru sebagai pengganti data lama.
-                    latestByKey.forEach(draft => {
                         store.add({
                             barcode: draft.barcode,
                             nama: draft.nama,
                             rak: draft.rak,
                             bulan: draft.bulan,
                             tahun: draft.tahun,
+                            tanggal: draft.tanggal ?? null,
                             tahunBulan: `${draft.tahun}-${
                                 String(draft.bulan).padStart(2, "0")
                             }`,
                             eksekusi: draft.eksekusi || "- 1 Bulan",
                             createdAt: new Date().toISOString()
                         });
+
+                        existingKeys.add(key);
+                        savedCount += 1;
                     });
                 };
 
-                getAllRequest.onerror = () => {
-                    tx.abort();
-                };
-
+                getAllRequest.onerror = () => tx.abort();
                 tx.oncomplete = resolve;
-
-                tx.onerror = () => {
-                    reject(
-                        tx.error ||
-                        new Error("Data gagal disimpan.")
-                    );
-                };
-
-                tx.onabort = () => {
-                    reject(
-                        tx.error ||
-                        new Error("Penyimpanan dibatalkan.")
-                    );
-                };
+                tx.onerror = () => reject(
+                    tx.error || new Error("Data gagal disimpan.")
+                );
+                tx.onabort = () => reject(
+                    tx.error || new Error("Penyimpanan dibatalkan.")
+                );
             });
 
-            const savedCount = state.drafts.length;
-
             state.drafts = [];
-
             await loadRecords();
             closeModal();
 
-            showSuccess(
-                `Berhasil! ${savedCount.toLocaleString("id-ID")} ` +
-                "data expired berhasil disimpan."
-            );
+            if (savedCount > 0) {
+                showSuccess(
+                    `Berhasil! ${savedCount.toLocaleString("id-ID")} ` +
+                    "tanggal expired berhasil disimpan."
+                );
+            } else {
+                showSuccess(
+                    "Tidak ada data baru. Semua tanggal tersebut sudah terdaftar.",
+                    true
+                );
+            }
         } catch (error) {
             setLookupMessage(
                 "Gagal menyimpan data: " +
                 (error.message || "kesalahan database."),
                 true
             );
-
             saveButton.disabled = false;
             renderDrafts();
         }
     }
 
-    async function deleteRecord(id) {
-        const record = state.records.find(item => item.id === id);
-        if (!record) return;
-        if (
-            !window.confirm(
-                `Hapus data expired untuk ${record.nama || record.barcode}?`
-            )
-        ) return;
+    async function deleteRecord(id, recordsToDelete = null) {
+        const selectedRecords = Array.isArray(recordsToDelete)
+            ? recordsToDelete
+            : [state.records.find(item => item.id === id)];
+        const records = selectedRecords.filter(Boolean);
+        const record = records.find(item => item.id === id) || records[0];
+        const ids = [...new Set(records.map(item => item.id).filter(
+            value => value !== undefined && value !== null
+        ))];
+
+        if (!record || !ids.length) return;
+
+        const isGroupDeletion = ids.length > 1;
+        const productName = record.nama || record.barcode || "barang ini";
+        const confirmationMessage = isGroupDeletion
+            ? `Hapus seluruh ${ids.length.toLocaleString("id-ID")} tanggal expired untuk ${productName}?`
+            : `Hapus data expired untuk ${productName}?`;
+
+        if (!window.confirm(confirmationMessage)) return;
 
         try {
             if (!state.db) state.db = await openExpiredDatabase();
             await new Promise((resolve, reject) => {
                 const tx = state.db.transaction(EXPIRED_STORE, "readwrite");
-                tx.objectStore(EXPIRED_STORE).delete(id);
+                const store = tx.objectStore(EXPIRED_STORE);
+                ids.forEach(recordId => store.delete(recordId));
                 tx.oncomplete = resolve;
                 tx.onerror = () => reject(
                     tx.error || new Error("Data gagal dihapus.")
@@ -1005,13 +1930,17 @@ function addCell(row, value, blankWhenEmpty = false) {
                 );
             });
             await loadRecords();
-            showSuccess("Berhasil! Data expired telah dihapus.");
+            showSuccess(
+                isGroupDeletion
+                    ? `Berhasil! ${ids.length.toLocaleString("id-ID")} tanggal expired untuk barang telah dihapus.`
+                    : "Berhasil! Data expired telah dihapus."
+            );
         } catch (error) {
             showSuccess("Data gagal dihapus. Silakan coba lagi.", true);
         }
     }
 
-    function bindStatusDeleteGesture(cell, record) {
+    function bindStatusDeleteGesture(cell, record, recordsToDelete = [record]) {
         let holdTimer = null;
         let startX = 0;
         let startY = 0;
@@ -1025,11 +1954,16 @@ function addCell(row, value, blankWhenEmpty = false) {
 
         cell.tabIndex = 0;
         cell.setAttribute("role", "button");
+        const isGroupDeletion = recordsToDelete.length > 1;
         cell.setAttribute(
             "aria-label",
-            `Tekan dan tahan untuk menghapus data ${record.nama || record.barcode}`
+            isGroupDeletion
+                ? `Tekan dan tahan untuk menghapus semua tanggal expired ${record.nama || record.barcode}`
+                : `Tekan dan tahan untuk menghapus data ${record.nama || record.barcode}`
         );
-        cell.title = "Tekan dan tahan untuk menghapus data ini";
+        cell.title = isGroupDeletion
+            ? "Tekan dan tahan untuk menghapus seluruh tanggal expired barang ini"
+            : "Tekan dan tahan untuk menghapus data ini";
 
         cell.addEventListener("pointerdown", event => {
             if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -1038,7 +1972,7 @@ function addCell(row, value, blankWhenEmpty = false) {
             startY = event.clientY;
             holdTimer = window.setTimeout(() => {
                 holdTimer = null;
-                deleteRecord(record.id);
+                deleteRecord(record.id, recordsToDelete);
             }, 600);
         });
 
@@ -1059,39 +1993,73 @@ function addCell(row, value, blankWhenEmpty = false) {
         cell.addEventListener("keydown", event => {
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
-            deleteRecord(record.id);
+            deleteRecord(record.id, recordsToDelete);
         });
     }
 
     let successTimer = null;
+
+    function hideSuccess() {
+        const popup = el("expiredSuccessPopup");
+        if (!popup) return;
+
+        popup.hidden = true;
+        popup.setAttribute("aria-hidden", "true");
+
+        if (successTimer !== null) {
+            clearTimeout(successTimer);
+            successTimer = null;
+        }
+    }
+
     function showSuccess(message, isError = false) {
         const popup = el("expiredSuccessPopup");
         if (!popup) return;
+
         el("expiredSuccessTitle").textContent = isError ? "Belum berhasil" : "Berhasil";
         el("expiredSuccessMessage").textContent = message;
+
         const icon = el("expiredSuccessIcon");
         icon.textContent = isError ? "!" : "✓";
         icon.classList.toggle("is-error", !!isError);
+
         popup.hidden = false;
         popup.setAttribute("aria-hidden", "false");
-        if (successTimer) clearTimeout(successTimer);
-        successTimer = setTimeout(() => {
-            popup.hidden = true;
-            popup.setAttribute("aria-hidden", "true");
-        }, 2200);
+
+        if (successTimer !== null) clearTimeout(successTimer);
+        successTimer = window.setTimeout(hideSuccess, 2200);
     }
 
     function stopCameraScanner() {
         state.cameraActive = false;
-        if (state.cameraFrame) cancelAnimationFrame(state.cameraFrame);
-        state.cameraFrame = 0;
-        if (state.cameraStream) {
-            state.cameraStream.getTracks().forEach(track => track.stop());
+        state.cameraTorch = false;
+
+        const scanner = state.html5QrCode;
+        state.html5QrCode = null;
+
+        const torchButton = el("expiredCameraTorch");
+        if (torchButton) {
+            torchButton.classList.remove("is-active");
+            torchButton.textContent = "⚡";
         }
-        state.cameraStream = null;
-        state.cameraDetector = null;
-        const video = el("expiredCameraVideo");
-        if (video) video.srcObject = null;
+
+        const reader = el("expiredCameraReader");
+        if (scanner) {
+            Promise.resolve()
+                .then(() => scanner.stop())
+                .catch(() => {})
+                .finally(() => {
+                    try {
+                        scanner.clear();
+                    } catch (_) {
+                        // Scanner bisa gagal memulai kamera; bersihkan tetap aman.
+                    }
+                    if (reader) reader.innerHTML = "";
+                });
+        } else if (reader) {
+            reader.innerHTML = "";
+        }
+
         const modal = el("expiredCameraModal");
         if (modal) {
             modal.hidden = true;
@@ -1101,6 +2069,32 @@ function addCell(row, value, blankWhenEmpty = false) {
 
     function handleScannedBarcode(rawCode) {
         const code = normalizeCode(rawCode);
+
+        if (state.scanTarget === "execution") {
+            const input = el("expiredExecutionSearch");
+            input.value = code;
+            const product = state.executionCodeIndex.get(normalizeText(code));
+            state.scanMode = false;
+            el("scanExpiredExecutionBarcode").classList.remove("is-scanning");
+            renderScanButton("Scan", "execution");
+
+            if (product) {
+                selectExecutionProduct(product);
+            } else {
+                clearExecutionSelectedProduct();
+                input.value = code;
+                const list = el("expiredExecutionAutocomplete");
+                list.innerHTML = "";
+                const empty = document.createElement("div");
+                empty.className = "expired-autocomplete-empty";
+                empty.textContent = "Produk tidak ditemukan.";
+                list.appendChild(empty);
+                list.hidden = false;
+                input.focus();
+            }
+            return;
+        }
+
         const input = el("expiredProductSearch");
         input.value = code;
         const product = state.codeIndex.get(normalizeText(code));
@@ -1119,72 +2113,189 @@ function addCell(row, value, blankWhenEmpty = false) {
         }
     }
 
-    async function scanCameraFrame() {
-        if (!state.cameraActive || !state.cameraDetector) return;
-        const video = el("expiredCameraVideo");
-        if (video && video.readyState >= 2) {
-            try {
-                const detected = await state.cameraDetector.detect(video);
-                if (detected && detected.length && detected[0].rawValue) {
-                    const code = detected[0].rawValue;
-                    stopCameraScanner();
-                    handleScannedBarcode(code);
-                    return;
-                }
-            } catch (error) {
-                const status = el("expiredCameraStatus");
-                if (status) {
-                    status.textContent =
-                        "Barcode belum terbaca. Atur jarak atau pencahayaan, " +
-                        "lalu arahkan barcode ke bingkai.";
-                }
-            }
-        }
-        if (state.cameraActive) {
-            state.cameraFrame = requestAnimationFrame(scanCameraFrame);
-        }
-    }
-
     async function startCameraScanner() {
-        if (
-            !navigator.mediaDevices?.getUserMedia ||
-            typeof window.BarcodeDetector === "undefined"
-        ) {
+        if (typeof window.Html5Qrcode !== "function") {
             return false;
         }
-        let formats = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf"];
-        if (typeof window.BarcodeDetector.getSupportedFormats === "function") {
-            const supported = await window.BarcodeDetector.getSupportedFormats();
-            formats = formats.filter(format => supported.includes(format));
-        }
-        if (!formats.length) return false;
 
-        state.cameraDetector = new window.BarcodeDetector({ formats });
-        state.cameraStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: { facingMode: { ideal: "environment" } }
-        });
-        const video = el("expiredCameraVideo");
-        video.srcObject = state.cameraStream;
-        await video.play();
+        const reader = el("expiredCameraReader");
+        const modal = el("expiredCameraModal");
+        const status = el("expiredCameraStatus");
+        if (!reader || !modal) return false;
+
+        reader.innerHTML = "";
+        const supportedFormats = window.Html5QrcodeSupportedFormats || {};
+        const formats = [
+            "EAN_13",
+            "EAN_8",
+            "UPC_A",
+            "UPC_E",
+            "CODE_128",
+            "CODE_39",
+            "ITF"
+        ]
+            .map(name => supportedFormats[name])
+            .filter(format => format !== undefined);
+
+        const scanner = new window.Html5Qrcode(
+            "expiredCameraReader",
+            formats.length ? { formatsToSupport: formats } : {}
+        );
+
+        state.html5QrCode = scanner;
         state.cameraActive = true;
-        el("expiredCameraModal").hidden = false;
-        el("expiredCameraModal").setAttribute("aria-hidden", "false");
-        el("expiredCameraStatus").textContent =
-            "Arahkan barcode ke bingkai. Setelah terbaca, " +
-            "data produk akan dicari otomatis.";
-        state.cameraFrame = requestAnimationFrame(scanCameraFrame);
-        return true;
+        state.cameraTorch = false;
+        modal.hidden = false;
+        modal.setAttribute("aria-hidden", "false");
+
+        if (status) {
+            status.textContent =
+                "Arahkan barcode ke kamera belakang perangkat.";
+        }
+
+        try {
+            await scanner.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    qrbox: 250
+                },
+                decodedText => {
+                    if (!state.cameraActive) return;
+
+                    stopCameraScanner();
+                    handleScannedBarcode(decodedText);
+                },
+                () => {}
+            );
+
+            return true;
+        } catch (error) {
+            state.cameraActive = false;
+            state.html5QrCode = null;
+            modal.hidden = true;
+            modal.setAttribute("aria-hidden", "true");
+            reader.innerHTML = "";
+
+            try {
+                await scanner.clear();
+            } catch (_) {
+                // Tidak ada elemen scanner yang perlu dibersihkan.
+            }
+
+            throw error;
+        }
     }
 
     function setupEvents() {
+        setupSearchClearButton("expiredProductSearch");
+        setupSearchClearButton("expiredExecutionSearch");
+
+        el("expiredSuccessPopup")?.addEventListener("click", hideSuccess);
         el("addExpiredData")?.addEventListener("click", openModal);
+        el("openExpiredExecution")?.addEventListener("click", openExecutionModal);
+        el("closeExpiredExecution")?.addEventListener("click", closeExecutionModal);
+        el("cancelExpiredExecution")?.addEventListener("click", closeExecutionModal);
+        el("expiredExecutionModal")?.addEventListener("click", event => {
+            if (event.target === el("expiredExecutionModal")) {
+                closeExecutionModal();
+            }
+        });
+        el("addExpiredExecutionDraft")?.addEventListener(
+            "click",
+            addExecutionDraft
+        );
+        el("confirmExpiredExecution")?.addEventListener(
+            "click",
+            confirmExecution
+        );
+        el("expiredExecutionSearch")?.addEventListener("input", () => {
+            clearExecutionSelectedProduct(false);
+            renderExecutionAutocomplete();
+        });
+        el("expiredExecutionSearch")?.addEventListener("focus", () => {
+            if (el("expiredExecutionSearch").value.trim()) {
+                renderExecutionAutocomplete();
+            }
+        });
+        el("expiredExecutionSearch")?.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+
+            const query = el("expiredExecutionSearch").value.trim();
+            const exact = state.executionCodeIndex.get(
+                normalizeText(normalizeCode(query))
+            );
+
+            if (exact) {
+                selectExecutionProduct(exact);
+            } else if (state.scanMode && state.scanTarget === "execution") {
+                const list = el("expiredExecutionAutocomplete");
+                list.innerHTML = "";
+                const empty = document.createElement("div");
+                empty.className = "expired-autocomplete-empty";
+                empty.textContent = "Produk tidak ditemukan.";
+                list.appendChild(empty);
+                list.hidden = false;
+                state.scanMode = false;
+                el("scanExpiredExecutionBarcode").classList.remove("is-scanning");
+                renderScanButton("Scan", "execution");
+            } else {
+                const matches = findExecutionProducts(query);
+                if (matches.length === 1) {
+                    selectExecutionProduct(matches[0]);
+                } else {
+                    renderExecutionAutocomplete();
+                }
+            }
+        });
+        el("expiredExecutionSearch")?.addEventListener("blur", () => {
+            window.setTimeout(() => {
+                if (el("expiredExecutionAutocomplete")) {
+                    el("expiredExecutionAutocomplete").hidden = true;
+                }
+            }, 160);
+        });
+        el("scanExpiredExecutionBarcode")?.addEventListener(
+            "click",
+            async () => {
+                state.scanTarget = "execution";
+                state.scanMode = false;
+                clearExecutionSelectedProduct();
+                try {
+                    const cameraOpened = await startCameraScanner();
+                    if (cameraOpened) return;
+                } catch (error) {
+                    stopCameraScanner();
+                }
+
+                state.scanMode = true;
+                const button = el("scanExpiredExecutionBarcode");
+                button.classList.add("is-scanning");
+                renderScanButton("Siap Scan", "execution");
+                const input = el("expiredExecutionSearch");
+                input.value = "";
+                input.placeholder = "Search....";
+                input.focus();
+            }
+        );
         el("closeExpiredModal")?.addEventListener("click", closeModal);
         el("cancelExpiredModal")?.addEventListener("click", closeModal);
         el("expiredModal")?.addEventListener("click", event => {
             if (event.target === el("expiredModal")) closeModal();
         });
+        el("expiredDetailView")?.addEventListener("click", event => {
+            if (event.target === el("expiredDetailView")) {
+                closeDetailView();
+            }
+        });
         el("expiredSearch")?.addEventListener("input", renderRecords);
+        el("expiredDateToggle")?.addEventListener("change", event => {
+            setDateEntryMode(event.target.checked);
+        });
+        el("expiredYear")?.addEventListener("change", event => {
+            rememberExpiryYear(event.target.value);
+        });
         el("expiredProductSearch")?.addEventListener("input", () => {
             state.selectedProduct = null;
             el("expiredSelectedBarcode").value = "";
@@ -1198,6 +2309,23 @@ function addCell(row, value, blankWhenEmpty = false) {
             if (event.key !== "Enter") return;
             event.preventDefault();
             const query = el("expiredProductSearch").value.trim();
+            if (state.scanMode && state.scanTarget === "execution") {
+                const executionProduct = state.executionCodeIndex.get(
+                    normalizeText(normalizeCode(query))
+                );
+                state.scanMode = false;
+                el("scanExpiredExecutionBarcode").classList.remove("is-scanning");
+                renderScanButton("Scan", "execution");
+                if (executionProduct) {
+                    selectExecutionProduct(executionProduct);
+                } else {
+                    renderExecutionAutocomplete();
+                    const list = el("expiredExecutionAutocomplete");
+                    if (list && !query) list.hidden = true;
+                }
+                return;
+            }
+
             const exact = state.codeIndex.get(normalizeText(normalizeCode(query)));
             const matches = findProducts(query);
             if (exact) {
@@ -1247,12 +2375,36 @@ function addCell(row, value, blankWhenEmpty = false) {
             renderScanButton("Siap Scan");
             const input = el("expiredProductSearch");
             input.value = "";
-            input.placeholder = "Pindai barcode, lalu tekan Enter...";
+            input.placeholder = "Search....";
             input.focus();
             setLookupMessage(
                 "Mode scanner fisik aktif. Pindai barcode ke kolom ini, " +
                 "lalu pastikan scanner mengirim tombol Enter."
             );
+        });
+        el("expiredCameraTorch")?.addEventListener("click", async () => {
+            const scanner = state.html5QrCode;
+            const button = el("expiredCameraTorch");
+            if (!scanner || !state.cameraActive || !button) return;
+
+            const nextTorchState = !state.cameraTorch;
+
+            try {
+                await scanner.applyVideoConstraints({
+                    torch: nextTorchState,
+                    advanced: [{ torch: nextTorchState }]
+                });
+
+                state.cameraTorch = nextTorchState;
+                button.classList.toggle("is-active", nextTorchState);
+                button.textContent = nextTorchState ? "⚡̸" : "⚡";
+            } catch (error) {
+                const status = el("expiredCameraStatus");
+                if (status) {
+                    status.textContent =
+                        "Perangkat atau browser tidak mendukung senter.";
+                }
+            }
         });
         el("closeExpiredCamera")?.addEventListener("click", stopCameraScanner);
         el("stopExpiredCamera")?.addEventListener("click", stopCameraScanner);
@@ -1281,8 +2433,18 @@ function addCell(row, value, blankWhenEmpty = false) {
                 !el("expiredCameraModal").hidden
             ) {
                 stopCameraScanner();
+            } else if (
+                el("expiredExecutionModal") &&
+                !el("expiredExecutionModal").hidden
+            ) {
+                closeExecutionModal();
             } else if (el("expiredModal") && !el("expiredModal").hidden) {
                 closeModal();
+            } else if (
+                el("expiredDetailView") &&
+                !el("expiredDetailView").hidden
+            ) {
+                closeDetailView();
             }
         });
     }

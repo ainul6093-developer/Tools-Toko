@@ -43,9 +43,9 @@ const pageLoadPromises = new Map();
 // CSS halaman dinamis dimuat sebelum fragmen HTML ditampilkan.
 // Setiap halaman stok memiliki stylesheet mandiri dan tidak berbagi file CSS.
 const pageStylesheets = new Map([
-    ["stok-toko", "css/pages/stok-toko.css?v=17"],
-    ["stok-gudang", "css/pages/stok-gudang.css?v=17"],
-    ["data-expired", "css/pages/expired.css?v=22"],
+    ["stok-toko", "css/pages/stok-toko.css?v=18"],
+    ["stok-gudang", "css/pages/stok-gudang.css?v=18"],
+    ["data-expired", "css/pages/expired.css?v=45"],
     ["developer", "css/pages/developer.css?v=15"]
 ]);
 const pageStylesheetPromises = new Map();
@@ -85,8 +85,13 @@ async function loadPageFragment(pageName) {
     if (!page || loadedPageFragments.has(pageName)) return;
     if (pageLoadPromises.has(pageName)) return pageLoadPromises.get(pageName);
 
-    const fragmentPath = pageName === "data-expired"
-        ? "pages/data-expired.html?v=22"
+    const fragmentVersions = {
+        "stok-toko": "2",
+        "stok-gudang": "2",
+        "data-expired": "32"
+    };
+    const fragmentPath = fragmentVersions[pageName]
+        ? "pages/" + pageName + ".html?v=" + fragmentVersions[pageName]
         : "pages/" + pageName + ".html";
     const promise = fetch(fragmentPath)
         .then(response => {
@@ -193,53 +198,92 @@ function closeSidebar() {
 ========================================= */
 
 let touchStartX = 0;
+let touchStartY = 0;
 let touchEndX = 0;
-
-// Menandai apakah gesture berasal dari area yang boleh
-// digunakan untuk membuka/menutup sidebar.
 let allowSidebarSwipe = true;
+let activeTableSwipeArea = null;
 
-// Geser horizontal pada tabel harus tetap digunakan untuk menggulir tabel,
-// bukan dianggap sebagai gesture untuk membuka atau menutup sidebar.
-const sidebarSwipeExcludedAreas =
-    ".product-table-wrapper, .stock-table-scroll, .expired-table-wrapper";
+// Cari wadah tabel yang benar-benar memiliki scroll horizontal.
+// Deteksi ini berlaku untuk semua tabel, tanpa bergantung pada nama class.
+function getHorizontallyScrollableTableArea(target) {
+    const table = target.closest("table");
+    if (!table) return null;
+
+    let ancestor = table.parentElement;
+
+    while (ancestor && ancestor !== document.body) {
+        const style = window.getComputedStyle(ancestor);
+        const allowsHorizontalScroll = [
+            style.overflowX,
+            style.overflow
+        ].some(value => ["auto", "scroll", "overlay"].includes(value));
+
+        if (
+            allowsHorizontalScroll &&
+            ancestor.scrollWidth > ancestor.clientWidth + 1
+        ) {
+            return ancestor;
+        }
+
+        ancestor = ancestor.parentElement;
+    }
+
+    return null;
+}
 
 document.addEventListener("touchstart", function(event) {
+    if (window.innerWidth > 700 || !event.changedTouches.length) return;
 
-    if (window.innerWidth > 700) {
-        return;
-    }
-
-    // Jangan mengambil alih gesture gulir horizontal pada tabel.
-    if (event.target.closest(sidebarSwipeExcludedAreas)) {
-        allowSidebarSwipe = false;
-        return;
-    }
-
+    const touch = event.changedTouches[0];
+    touchStartX = touch.screenX;
+    touchStartY = touch.screenY;
+    touchEndX = touchStartX;
     allowSidebarSwipe = true;
+    activeTableSwipeArea = getHorizontallyScrollableTableArea(event.target);
+}, { passive: true });
 
-    touchStartX =
-        event.changedTouches[0].screenX;
+document.addEventListener("touchmove", function(event) {
+    if (
+        window.innerWidth > 700 ||
+        !activeTableSwipeArea ||
+        !event.changedTouches.length
+    ) {
+        return;
+    }
 
-});
+    const touch = event.changedTouches[0];
+    const deltaX = touch.screenX - touchStartX;
+    const deltaY = touch.screenY - touchStartY;
+
+    // Kunci gesture sidebar hanya saat gerakan horizontal dimulai di tabel
+    // yang dapat digeser. Scroll tabel tetap ditangani browser.
+    if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        allowSidebarSwipe = false;
+    }
+}, { passive: true });
 
 document.addEventListener("touchend", function(event) {
-
     if (window.innerWidth > 700) {
+        activeTableSwipeArea = null;
+        allowSidebarSwipe = true;
         return;
     }
 
-    // Jika gesture dimulai dari area tabel, jangan diproses sebagai gesture sidebar.
-    if (!allowSidebarSwipe) {
-        return;
+    if (!event.changedTouches.length) return;
+    touchEndX = event.changedTouches[0].screenX;
+
+    if (allowSidebarSwipe) {
+        handleSwipe();
     }
 
-    touchEndX =
-        event.changedTouches[0].screenX;
+    activeTableSwipeArea = null;
+    allowSidebarSwipe = true;
+}, { passive: true });
 
-    handleSwipe();
-
-});
+document.addEventListener("touchcancel", function() {
+    activeTableSwipeArea = null;
+    allowSidebarSwipe = true;
+}, { passive: true });
 
 function handleSwipe() {
 
